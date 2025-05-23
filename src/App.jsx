@@ -5,7 +5,7 @@ import Mainmenu from './component/mainmenu';
 import Tictactoe from './pages/Tictactoe';
 // import Ludo from './pages/Ludo';
 // import Wordquiz from './pages/Wordquiz';
-// import Hexafall from './pages/Hexafall';
+import Hexafall from './pages/Hexafall';
 const App = () => {
   return (
     <Routes>
@@ -13,7 +13,7 @@ const App = () => {
       <Route path="/tictactoe" element={<Tictactoe />} />
       <Route path="/ludo" element={<main />} />
       <Route path="/word-game" element={<main />} />
-      <Route path="/hexa-fall" element={<main />} />
+      <Route path="/hexa-fall" element={<Hexafall />} />
     </Routes>
   )
 }
