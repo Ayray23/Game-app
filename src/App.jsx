@@ -4,7 +4,7 @@ import Mainmenu from './component/Mainmenu';
 import Tictactoe from './pages/tictactoe';
 // import Ludo from './pages/Ludo';
 // import Wordquiz from './pages/Wordquiz';
-import Hexafall from './pages/Hexafall';
+import Hexafall from './pages/hexafall';
 const App = () => {
   return (
     <Routes>
