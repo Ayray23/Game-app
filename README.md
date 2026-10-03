@@ -22,7 +22,7 @@ npm run dev
 For Vercel, set:
 
 ```text
-VITE_SOCKET_URL=https://game-server-5q0s.onrender.com
+VITE_SOCKET_URL=https://game-server-1-sxiw.onrender.com
 ```
 
 ### Server
