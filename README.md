@@ -1,12 +1,39 @@
-# React + Vite
+# Arcade Arena
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + Vite multiplayer game hub with local and online Tic Tac Toe, real-time Socket.IO synchronization, live room chat, and browser-generated sound effects.
 
-Currently, two official plugins are available:
+## Games
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Tic Tac Toe — local 2-player mode
+- Tic Tac Toe — online rooms for two players
+- Pokemon Memory — solo mode
 
-## Expanding the ESLint configuration
+## Online multiplayer
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The client uses `VITE_SOCKET_URL` for the Socket.IO server. If it is not set, it falls back to the deployed game server URL.
+
+### Client
+
+```bash
+npm install
+npm run dev
+```
+
+For Vercel, set:
+
+```text
+VITE_SOCKET_URL=https://game-server-5q0s.onrender.com
+```
+
+### Server
+
+```bash
+npm install
+npm start
+```
+
+The server exposes `/health` and handles rooms, turn validation, game state, rematches, disconnects, and live chat.
+
+## Sound
+
+Game sounds use the browser Web Audio API, so no external audio files are required. Sound starts after normal user interaction to comply with browser autoplay restrictions.
