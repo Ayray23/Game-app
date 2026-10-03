@@ -1,32 +1,23 @@
 import React, { useState } from 'react';
-import TictactoeOnline from './tictactoeonline';
-import TictactoeLocal from './tictactoelocal';
+import { Link } from 'react-router-dom';
 
-const Tictactoe = () => { const [mode, setMode] = useState(null);
-
-if (mode === 'online') 
-return <TictactoeOnline />; 
-if (mode === 'local') 
-return <TictactoeLocal />;
-
-return ( 
-  <div className='min-h-screen bg-slate-950 flex items-center justify-center'> 
-      <div className='w-full max-w-[400px] mx-5 text-center'>
-          <h1 className='text-5xl font-semibold text-white mb-6'>Tic Tac Toe</h1> 
-          <p className='text-white text-lg mb-4'>Choose a mode to start playing:</p>
-          <div className='space-y-4'> 
-            <button 
-              onClick={() => setMode('local')}
-              className='w-[250px] text-white text-2xl font-semibold border-4 border-pink-500 rounded-xl py-4 text-center hover:scale-105 transition'> Play Locally 
-            </button> 
-            <button 
-              onClick={() => setMode('online')}
-              className='w-[250px] text-white text-2xl font-semibold border-4 border-blue-500 rounded-xl py-4 text-center hover:scale-105 transition'> Play Online 
-            </button>
-          </div> 
-        </div> 
-  </div>
-   );
-   };
-
-export default Tictactoe;
+export default function Tictactoe() {
+  const [mode, setMode] = useState(null);
+  if (mode === 'online') return <TictactoeOnlinePicker />;
+  if (mode === 'local') return <LocalPicker />;
+  return (
+    <main className="game-shell">
+      <section className="setup-card">
+        <Link className="back-link" to="/">← Back to hub</Link>
+        <div className="eyebrow">ARCADE</div><h1>Tic Tac Toe</h1>
+        <p className="muted">Choose how you want to play.</p>
+        <div className="mode-grid">
+          <button onClick={() => setMode('local')} className="mode-card"><span>🎮</span><b>Play Locally</b><small>Two players on one device</small></button>
+          <button onClick={() => setMode('online')} className="mode-card"><span>🌐</span><b>Play Online</b><small>Create or join a room</small></button>
+        </div>
+      </section>
+    </main>
+  );
+}
+function LocalPicker(){ window.location.href='/tictactoelocal'; return null; }
+function TictactoeOnlinePicker(){ window.location.href='/tictactoeonline'; return null; }
