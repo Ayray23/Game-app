@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { Link } from 'react-router-dom';
 import { sounds } from '../lib/audio';
+import VoiceChat from '../component/VoiceChat';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://game-server-5q0s.onrender.com';
 const socket = io(SOCKET_URL, { autoConnect: false });
@@ -150,6 +151,7 @@ export default function TictactoeOnline() {
           </div>
           {phase === 'finished' && <button className="primary-btn wide" onClick={rematch}>Play Again</button>}
           {error && <div className="error-box">{error}</div>}
+          <VoiceChat socket={socket} roomId={roomId} players={players}/>
         </section>
 
         <aside className="chat-card">
