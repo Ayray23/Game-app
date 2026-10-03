@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { sounds } from '../lib/audio';
 
 const hexafall = () => {
   // Hexafall game logic and state management would go here
@@ -30,7 +31,9 @@ const hexafall = () => {
   };
 
   const handleClick = (pokemonId) => {
+    sounds.click();
     if (clickedPokemons.includes(pokemonId)) {
+      sounds.timeout();
       alert('You already clicked this Pokemon!');
       setClickedPokemons([]);
       setScore(0);
@@ -41,6 +44,7 @@ const hexafall = () => {
       setBestScore(Math.max(newScore, bestScore));
 
       if (newScore === 12) {
+        sounds.win();
         alert('You win!');
         setClickedPokemons([]);
         setScore(0);
