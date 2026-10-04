@@ -8,6 +8,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://game-server-1-sxi
 const socket = io(SOCKET_URL, { autoConnect: false });
 
 const winnerFor = (squares) => {
+  if (!Array.isArray(squares) || squares.length < 9) return null;
   const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   for (const [a,b,c] of lines) {
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return squares[a];
@@ -47,9 +48,9 @@ export default function TictactoeOnline() {
       sounds.join();
     };
     const onState = (state) => {
-      setRoomId(state.roomId);
-      setBoard(state.board);
-      setTurn(state.currentTurn);
+      setRoomId(state.roomId || '');
+      setBoard(Array.isArray(state.board) && state.board.length === 9 ? state.board : Array(9).fill(null));
+      setTurn(state.currentTurn || 'X');
       setPlayers(state.players);
       if (state.status === 'waiting') { setPhase('waiting'); setStatus('Waiting for opponent…'); }
       else if (state.status === 'playing') { setPhase('game'); setStatus(state.currentTurn === symbol ? 'Your turn' : 'Opponent’s turn'); }
