@@ -1,3 +1,39 @@
-import React from'react';import{Link}from'react-router-dom';
-const games=[['/tictactoe','✕ ○','Tic Tac Toe','2 players · local + online','pink'],['/ludo','🎲','Ludo','2–4 players · online','green'],['/connect-four','🔴','Connect Four','2 players · online','blue'],['/battleship','⚓','Battleship','2 players · online','orange'],['/hexa-fall','◈','Pokemon Memory','Solo memory challenge','purple']];
-export default function Mainmenu(){return <main className="game-shell"><section className="hub-card"><div className="eyebrow">GAME HUB</div><h1>Arcade Arena</h1><p className="muted">Free multiplayer games with rooms, chat and optional voice.</p><div className="game-grid">{games.map(([to,icon,title,desc,c])=><Link to={to} className={'game-tile '+c} key={to}><span>{icon}</span><b>{title}</b><small>{desc}</small></Link>)}</div><div className="feature-row"><span>🎙 Free WebRTC voice</span><span>⚡ Live multiplayer</span><span>💬 In-game chat</span></div></section></main>}
+import React from 'react';
+import { Link } from 'react-router-dom';
+
+const games = [
+  ['/tictactoe', '✕ ○', 'Tic Tac Toe', '2 players · local + online', 'pink'],
+  ['/ludo', '🎲', 'Ludo', '2–4 players · online', 'green'],
+  ['/connect-four', '🔴', 'Connect Four', '2 players · online', 'blue'],
+  ['/battleship', '⚓', 'Battleship', '2 players · online', 'orange'],
+  ['/hexa-fall', '◈', 'Pokemon Memory', 'Solo memory challenge', 'purple'],
+  ['/wordquiz', '✍️', 'Word Quiz', 'Quick vocabulary challenge', 'yellow'],
+];
+
+export default function Mainmenu() {
+  return (
+    <main className="game-shell">
+      <section className="hub-card">
+        <div className="eyebrow">GAME HUB</div>
+        <h1>Arcade Arena</h1>
+        <p className="muted">Free multiplayer games with rooms, chat and optional voice.</p>
+
+        <div className="game-grid">
+          {games.map(([to, icon, title, desc, c]) => (
+            <Link to={to} className={'game-tile ' + c} key={to}>
+              <span>{icon}</span>
+              <b>{title}</b>
+              <small>{desc}</small>
+            </Link>
+          ))}
+        </div>
+
+        <div className="feature-row">
+          <span>🎙 Free WebRTC voice</span>
+          <span>⚡ Live multiplayer</span>
+          <span>💬 In-game chat</span>
+        </div>
+      </section>
+    </main>
+  );
+}
