@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { sounds } from '../lib/audio';
 import VoiceChat from '../component/VoiceChat';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://game-server-1-sxiw.onrender.com';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://game-server-1-sxiw.onrender.com');
 const socket = io(SOCKET_URL, { autoConnect: false });
 
 const winnerFor = (squares) => {
@@ -32,6 +32,7 @@ export default function TictactoeOnline() {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
   const chatRef = useRef(null);
+  const symbolRef = useRef(null);
 
   const winner = useMemo(() => winnerFor(board), [board]);
   const me = players.find((p) => p.symbol === symbol);
@@ -40,21 +41,21 @@ export default function TictactoeOnline() {
 
   useEffect(() => {
     const onCreated = ({ roomId: id, symbol: assigned }) => {
-      setRoomId(id); setSymbol(assigned); setPhase('waiting'); setStatus('Waiting for another player…'); setError('');
+      setRoomId(id); symbolRef.current = assigned; setSymbol(assigned); setPhase('waiting'); setStatus('Waiting for another player…'); setError('');
       sounds.join();
     };
     const onJoined = ({ roomId: id, symbol: assigned }) => {
-      setRoomId(id); setSymbol(assigned); setPhase('game'); setStatus('Game started'); setError('');
+      setRoomId(id); symbolRef.current = assigned; setSymbol(assigned); setPhase('game'); setStatus('Game started'); setError('');
       sounds.join();
     };
     const onState = (state) => {
       setRoomId(state.roomId || '');
       setBoard(Array.isArray(state.board) && state.board.length === 9 ? state.board : Array(9).fill(null));
       setTurn(state.currentTurn || 'X');
-      setPlayers(state.players);
+      setPlayers(Array.isArray(state.players) ? state.players : []);
       if (state.status === 'waiting') { setPhase('waiting'); setStatus('Waiting for opponent…'); }
-      else if (state.status === 'playing') { setPhase('game'); setStatus(state.currentTurn === symbol ? 'Your turn' : 'Opponent’s turn'); }
-      else if (state.winner) { setPhase('finished'); setStatus(state.winner === symbol ? 'You won! 🎉' : 'Opponent won'); }
+      else if (state.status === 'playing') { setPhase('game'); setStatus(state.currentTurn === symbolRef.current ? 'Your turn' : 'Opponent’s turn'); }
+      else if (state.winner) { setPhase('finished'); setStatus(state.winner === symbolRef.current ? 'You won! 🎉' : 'Opponent won'); }
       else if (state.draw) { setPhase('finished'); setStatus('Draw game'); }
     };
     const onChat = (msg) => { setMessages((prev) => [...prev.slice(-49), msg]); if (msg.id) sounds.message(); };
@@ -75,7 +76,7 @@ export default function TictactoeOnline() {
       socket.off('errorMessage', onError); socket.off('playerLeft', onLeft);
       socket.disconnect();
     };
-  }, [symbol]);
+  }, []);
 
   useEffect(() => {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' });
@@ -85,13 +86,13 @@ export default function TictactoeOnline() {
   const createRoom = () => {
     if (!enterName) return setError('Enter your name first.');
     setError('');
-    socket.emit('createRoom', { roomId: makeCode(), name: enterName });
+    socket.emit('createRoom', { roomId: makeCode(), name: enterName, game: 'ttt' });
   };
   const joinRoom = () => {
     if (!enterName) return setError('Enter your name first.');
     if (!roomInput.trim()) return setError('Enter a room code.');
     setError('');
-    socket.emit('joinRoom', { roomId: roomInput.trim().toUpperCase(), name: enterName });
+    socket.emit('joinRoom', { roomId: roomInput.trim().toUpperCase(), name: enterName, game: 'ttt' });
   };
   const move = (index) => {
     if (!myTurn || board[index]) return;
