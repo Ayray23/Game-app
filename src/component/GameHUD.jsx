@@ -1,12 +1,12 @@
 import React,{useEffect,useState}from'react';
 
-export default function GameHUD({title,roomId,players=[],scores=[],round=1,meSlot,status,winner,draw,onExit,children}){
+export default function GameHUD({title,roomId,players=[],scores=[],round=1,meSlot,status,winner,draw,onExit,notice,children}){
  const [toast,setToast]=useState('');
  useEffect(()=>{
-  let text='';
-  if(status==='waiting') text='Waiting for opponent';
-  else if(status==='playing') text=meSlot!==undefined&&players[meSlot]?'Your turn':'Game in progress';
-  else if(status==='finished') text=winner===meSlot?'You won the round!':winner===null?'Round draw':'Round complete';
+  let text=notice||'';
+  if(!text&&status==='waiting') text='Waiting for opponent';
+  else if(!text&&status==='playing') text='Match in progress';
+  else if(!text&&status==='finished') text=winner===meSlot?'You won the round!':winner===null?'Round draw':'Round complete';
   if(text){setToast(text);const t=setTimeout(()=>setToast(''),2500);return()=>clearTimeout(t)}
  },[status,winner,meSlot,round]);
  return <>
