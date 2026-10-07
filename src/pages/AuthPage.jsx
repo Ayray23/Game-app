@@ -28,6 +28,8 @@ export default function AuthPage({ mode = "login" }) {
 
   if (!firebaseConfigured) return <main className="auth-page"><section className="auth-card"><Link to="/" className="auth-brand"><span>⌁</span><b>GameHub</b></Link><div className="auth-heading"><span className="eyebrow">FIREBASE SETUP REQUIRED</span><h1>Authentication is not configured yet</h1><p>Add the VITE_FIREBASE_* environment variables to this project and redeploy. Guest mode is still available.</p></div><Link className="auth-submit" style={{display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none'}} to="/">Continue as guest</Link></section></main>;
 
+  if (!firebaseConfigured) return <main className="auth-page"><section className="auth-card"><Link to="/" className="auth-brand"><span>⌁</span><b>GameHub</b></Link><div className="auth-heading"><span className="eyebrow">FIREBASE SETUP REQUIRED</span><h1>Authentication is not configured yet</h1><p>Add the VITE_FIREBASE_* environment variables to this project and redeploy. Guest mode is still available.</p></div><Link className="auth-submit" style={{display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none"}} to="/">Continue as guest</Link></section></main>;
+
   const change = e => setForm(v => ({ ...v, [e.target.name]: e.target.value }));
 
   const submit = async e => {
