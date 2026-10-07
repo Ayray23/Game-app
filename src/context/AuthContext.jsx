@@ -12,7 +12,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!auth || !db) { setLoading(false); return undefined; }
-    return onAuthStateChanged(auth, async (nextUser) => {
+    let stopProfile = () => {};
+    const stopAuth = onAuthStateChanged(auth, (nextUser) => {
+      stopProfile();
+      stopProfile = () => {};
       setUser(nextUser);
       if (!nextUser) {
         setProfile(null);
@@ -20,7 +23,7 @@ export function AuthProvider({ children }) {
         return;
       }
       const ref = doc(db, "players", nextUser.uid);
-      return onSnapshot(ref, async (snap) => {
+      stopProfile = onSnapshot(ref, async (snap) => {
         if (snap.exists()) {
           setProfile(snap.data());
         } else {
@@ -29,13 +32,8 @@ export function AuthProvider({ children }) {
             username: nextUser.displayName || nextUser.email?.split("@")[0] || "Player",
             email: nextUser.email || "",
             avatar: (nextUser.displayName || nextUser.email || "P").slice(0, 1).toUpperCase(),
-            totalGames: 0,
-            wins: 0,
-            losses: 0,
-            draws: 0,
-            points: 0,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+            totalGames: 0, wins: 0, losses: 0, draws: 0, points: 0,
+            createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
           };
           await setDoc(ref, fallback, { merge: true });
           setProfile(fallback);
@@ -43,13 +41,12 @@ export function AuthProvider({ children }) {
         setLoading(false);
       }, () => setLoading(false));
     });
+    return () => { stopProfile(); stopAuth(); };
   }, []);
 
   const value = useMemo(() => ({
-    user,
-    profile,
-    loading,
-    logout: () => signOut(auth),
+    user, profile, loading,
+    logout: () => auth ? signOut(auth) : Promise.resolve(),
   }), [user, profile, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
