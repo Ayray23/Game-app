@@ -12,9 +12,7 @@ const API = import.meta.env.DEV
   : import.meta.env.VITE_SOCKET_URL || 'https://game-server-1-sxiw.onrender.com';
 
 const GAME_META = {
-  ludo: { title: 'Ludo', subtitle: 'Classic · Multiplayer', tone: 'green', art: 'ludo', path: '/ludo' },
   connect4: { title: 'Connect Four', subtitle: 'Strategy · Multiplayer', tone: 'blue', art: 'connect4', path: '/connect-four' },
-  battleship: { title: 'Battleship', subtitle: 'Tactical · Multiplayer', tone: 'cyan', art: 'battleship', path: '/battleship' },
   ttt: { title: 'Tic-Tac-Toe', subtitle: 'Fast · Multiplayer', tone: 'purple', art: 'ttt', path: '/tictactoeonline' },
 };
 
@@ -28,18 +26,6 @@ const ago = (iso) => {
 };
 
 function GameArt({ type }) {
-  if (type === 'ludo') {
-    return (
-      <div className="hub-art hub-art-ludo">
-        <div className="art-die die-one">5</div>
-        <div className="art-die die-two">3</div>
-        <i className="pawn pawn-red">●</i>
-        <i className="pawn pawn-green">●</i>
-        <i className="pawn pawn-blue">●</i>
-      </div>
-    );
-  }
-
   if (type === 'connect4') {
     return (
       <div className="hub-art hub-art-connect4">
@@ -48,16 +34,6 @@ function GameArt({ type }) {
             <i key={i} className={i % 9 === 0 ? 'yellow' : i % 7 === 0 ? 'red' : ''} />
           ))}
         </div>
-      </div>
-    );
-  }
-
-  if (type === 'battleship') {
-    return (
-      <div className="hub-art hub-art-battleship">
-        <span className="ship-silhouette">⚓</span>
-        <span className="ship-line ship-line-a" />
-        <span className="ship-line ship-line-b" />
       </div>
     );
   }
@@ -92,25 +68,7 @@ function BoardPreview({ game }) {
     );
   }
 
-  if (game === 'ludo') {
-    return (
-      <div className="preview-ludo">
-        <div className="lp lp-red">●</div>
-        <div className="lp lp-green">●</div>
-        <div className="lp lp-blue">●</div>
-        <div className="lp lp-yellow">●</div>
-        <div className="lp-center">◆</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="preview-battle">
-      {Array.from({ length: 100 }, (_, i) => (
-        <i key={i} className={i % 17 === 0 ? 'ship' : i % 23 === 0 ? 'hit' : i % 29 === 0 ? 'miss' : ''} />
-      ))}
-    </div>
-  );
+  return null;
 }
 
 function Modal({ title, onClose, children, wide = false }) {
@@ -376,10 +334,7 @@ function VoiceModal({ onClose }) {
         <h3>Voice is ready inside a live room</h3>
         <p>Join any multiplayer room and enable the microphone from the in-game Voice panel. No paid voice service is required.</p>
         <div className="voice-actions">
-          <Link className="primary-btn" to="/ludo" onClick={onClose}>
-            Play Ludo
-          </Link>
-          <Link className="secondary-btn" to="/connect-four" onClick={onClose}>
+<Link className="secondary-btn" to="/connect-four" onClick={onClose}>
             Play Connect Four
           </Link>
         </div>
