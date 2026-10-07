@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useMemo,useState}from'react';
 import{Link,useNavigate}from'react-router-dom';
 
-const API=import.meta.env.VITE_SOCKET_URL||'https://game-server-1-sxiw.onrender.com';
+const API=import.meta.env.DEV?'http://localhost:5000':(import.meta.env.VITE_SOCKET_URL||'https://game-server-1-sxiw.onrender.com');
 const GAME_META={
  ludo:{title:'Ludo',subtitle:'Classic · Multiplayer',tone:'green',art:'ludo',path:'/ludo'},
  connect4:{title:'Connect Four',subtitle:'Strategy · Multiplayer',tone:'blue',art:'connect4',path:'/connect-four'},
