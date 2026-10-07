@@ -9,11 +9,16 @@ import Ludo from './pages/ludo';
 import ConnectFour from './pages/connectfour';
 import Battleship from './pages/battleship';
 import Wordquiz from './pages/wordquiz';
+import AuthPage from './pages/AuthPage';
+import { AuthProvider } from './context/AuthContext';
 
 export default function App() {
   return (
+    <AuthProvider>
     <Routes>
       <Route path="/" element={<Mainmenu />} />
+      <Route path="/login" element={<AuthPage mode="login" />} />
+      <Route path="/signup" element={<AuthPage mode="signup" />} />
       <Route path="/tictactoe" element={<Tictactoe />} />
       <Route path="/tictactoeonline" element={<TictactoeOnline />} />
       <Route path="/tictactoelocal" element={<TictactoeLocal />} />
@@ -24,5 +29,6 @@ export default function App() {
       <Route path="/wordquiz" element={<Wordquiz />} />
       <Route path="*" element={<Mainmenu />} />
     </Routes>
+    </AuthProvider>
   );
 }
