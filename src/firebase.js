@@ -12,6 +12,15 @@ if (!firebaseConfigured) {
   console.warn("Firebase is not configured. Add the VITE_FIREBASE_* variables to your local .env and Vercel project settings.");
 }
 
+export async function loadFirebaseModule(modulePath) {
+  try {
+    return await import(/* @vite-ignore */ modulePath);
+  } catch (error) {
+    console.warn(`Firebase module ${modulePath} could not be loaded.`, error);
+    return null;
+  }
+}
+
 let app = null;
 export let auth = null;
 export let db = null;
@@ -19,9 +28,16 @@ export let db = null;
 if (firebaseConfigured) {
   (async () => {
     try {
-      const firebaseAppMod = await import(new Function('return "firebase/app"')());
-      const firebaseAuthMod = await import(new Function('return "firebase/auth"')());
-      const firebaseFirestoreMod = await import(new Function('return "firebase/firestore"')());
+      const [firebaseAppMod, firebaseAuthMod, firebaseFirestoreMod] = await Promise.all([
+        loadFirebaseModule('firebase/app'),
+        loadFirebaseModule('firebase/auth'),
+        loadFirebaseModule('firebase/firestore'),
+      ]);
+
+      if (!firebaseAppMod || !firebaseAuthMod || !firebaseFirestoreMod) {
+        console.warn('Firebase SDK could not be initialized. Auth and Firestore will be disabled until the dependency is installed.');
+        return;
+      }
 
       const { initializeApp } = firebaseAppMod;
       const { getAuth } = firebaseAuthMod;

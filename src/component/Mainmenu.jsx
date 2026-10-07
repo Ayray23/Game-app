@@ -1,10 +1,10 @@
 ﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
+import { db, loadFirebaseModule } from '../firebase';
 
 async function loadFirestore() {
-  return import(new Function('return "firebase/firestore"')());
+  return loadFirebaseModule('firebase/firestore');
 }
 
 const API = import.meta.env.DEV
@@ -634,129 +634,17 @@ export default function Mainmenu() {
             ))}
           </section>
 
-          <section className="hub-previews">
-            {['ttt', 'connect4', 'ludo', 'battleship'].map((game) => (
-              <PreviewCard key={game} game={game} room={topRooms.find((r) => r.game === game)} onJoin={joinRoom} />
-            ))}
-          </section>
+          <footer className="hub-footer">
+            <span>GameHub</span>
+            <div>
+              <a href="#home">Home</a>
+              <a href="#games">Games</a>
+              <button onClick={() => setModal('rooms')}>Rooms</button>
+            </div>
+            <small>{user ? 'Signed in' : 'Guest mode'}</small>
+          </footer>
         </section>
 
-        <aside className="hub-rail">
-          <section className="rail-card features-card">
-            <h2>Key Features in This Design</h2>
-            <div className="feature-item">
-              <i className="feature-icon blue">▣</i>
-              <div>
-                <b>Match System</b>
-                <p>Rounds continue automatically and scores stay with the match.</p>
-              </div>
-            </div>
-            <div className="feature-item">
-              <i className="feature-icon green">♧</i>
-              <div>
-                <b>Live Scoreboard</b>
-                <p>Scores and rounds come directly from the multiplayer server.</p>
-              </div>
-            </div>
-            <div className="feature-item">
-              <i className="feature-icon gold">□</i>
-              <div>
-                <b>Floating Notifications</b>
-                <p>In-game events appear as timed overlays without forcing a scroll.</p>
-              </div>
-            </div>
-            <div className="feature-item">
-              <i className="feature-icon purple">♧</i>
-              <div>
-                <b>Chat & Voice</b>
-                <p>Socket chat and peer-to-peer voice are available inside rooms.</p>
-              </div>
-            </div>
-            <div className="feature-item">
-              <i className="feature-icon violet">⌁</i>
-              <div>
-                <b>Responsive Interface</b>
-                <p>The same dashboard adapts across desktop, tablet and mobile.</p>
-              </div>
-            </div>
-          </section>
-
-          <ActivityList activity={activity} />
-
-          <section className="voice-card">
-            <div className="voice-title">
-              <span>♩</span>
-              <div>
-                <b>Voice Chat</b>
-                <small>{hub.onlinePlayers ? 'Available in live rooms' : 'Waiting for players'}</small>
-              </div>
-              <button onClick={() => setModal('voice')}>◖</button>
-            </div>
-            <div className="voice-wave">
-              <span>♩</span>
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <b>⌁</b>
-            </div>
-          </section>
-
-          <section className="mobile-section">
-            <h2>Mobile Responsive</h2>
-            <p>Same real dashboard. Anywhere.</p>
-            <div className="phone">
-              <div className="phone-top">
-                <b>⌁ GameHub</b>
-                <span>☰</span>
-              </div>
-              <div className="phone-game">
-                <small>🎲 Ludo</small>
-                <span>{hub.activeRooms} active room{hub.activeRooms === 1 ? '' : 's'}</span>
-                <button onClick={() => openGame('/ludo')}>
-                  Play <i>›</i>
-                </button>
-              </div>
-              <div className="phone-turn">
-                ϟ <b>{hub.onlinePlayers ? 'Live now' : 'Offline'}</b>
-                <small>{hub.onlinePlayers || 0} connected players</small>
-              </div>
-              <div className="phone-score">
-                <span>
-                  Rooms <b>{hub.activeRooms}</b>
-                </span>
-                <span>
-                  Online <b>{hub.onlinePlayers}</b>
-                </span>
-              </div>
-              <div className="phone-ludo">
-                <div>●</div>
-                <div>●</div>
-                <div>◆</div>
-                <div>●</div>
-              </div>
-              <div className="phone-nav">
-                <button onClick={() => document.getElementById('home')?.scrollIntoView()}>
-                  ⌂<small>Home</small>
-                </button>
-                <button onClick={() => setModal('activity')}>
-                  □<small>Chat</small>
-                </button>
-                <button onClick={() => setModal('voice')}>
-                  ♩<small>Voice</small>
-                </button>
-                <button onClick={() => setModal('settings')}>
-                  ⋮<small>More</small>
-                </button>
-              </div>
-            </div>
-          </section>
-        </aside>
       </div>
 
       {error && (
