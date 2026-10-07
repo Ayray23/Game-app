@@ -21,7 +21,7 @@ export default function TictactoeOnline(){
   const onChat=msg=>{setMessages(v=>[...v.slice(-49),msg]);sounds.message()};
   const onError=msg=>setError(msg);
   const onLeft=()=>{setPhase('waiting');setStatus('waiting');setPlayers([]);setBoard(Array(9).fill(null))};
-  const autoJoin=()=>{const saved=localStorage.getItem('gamehub_name')||'';if(queryRoom&&saved)socket.emit('joinRoom',{roomId:queryRoom,name:saved.slice(0,20),game:'ttt'})};socket.on('connect',autoJoin);socket.on('roomCreated',onCreated);socket.on('roomJoined',onJoined);socket.on('game-state',onState);socket.on('chat-message',onChat);socket.on('errorMessage',onError);socket.on('playerLeft',onLeft);socket.connect();
+  const autoJoin=()=>{const saved=localStorage.getItem('gamehub_name')||auth?.currentUser?.displayName||auth?.currentUser?.email?.split('@')[0]||'';if(queryRoom&&saved)socket.emit('joinRoom',{roomId:queryRoom,name:saved.slice(0,20),game:'ttt'})};socket.on('connect',autoJoin);socket.on('roomCreated',onCreated);socket.on('roomJoined',onJoined);socket.on('game-state',onState);socket.on('chat-message',onChat);socket.on('errorMessage',onError);socket.on('playerLeft',onLeft);const connect=async()=>{let token=null;try{token=await auth?.currentUser?.getIdToken?.()||null}catch{}socket.auth=token?{token}:{};socket.connect()};connect();
   return()=>{socket.off('connect',autoJoin);socket.off('roomCreated',onCreated);socket.off('roomJoined',onJoined);socket.off('game-state',onState);socket.off('chat-message',onChat);socket.off('errorMessage',onError);socket.off('playerLeft',onLeft);socket.disconnect()};
  },[]);
  useEffect(()=>chatRef.current?.scrollTo({top:chatRef.current.scrollHeight,behavior:'smooth'}),[messages]);
