@@ -1,72 +1,779 @@
-import React,{useCallback,useEffect,useMemo,useState}from'react';
-import{Link,useNavigate}from'react-router-dom';
-import{useAuth}from'../context/AuthContext';
-import{collection,getDocs,query,where}from'firebase/firestore';
-import{db}from'../firebase';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
 
-const API=import.meta.env.DEV?'http://localhost:5000':(import.meta.env.VITE_SOCKET_URL||'https://game-server-1-sxiw.onrender.com');
-const GAME_META={
- ludo:{title:'Ludo',subtitle:'Classic · Multiplayer',tone:'green',art:'ludo',path:'/ludo'},
- connect4:{title:'Connect Four',subtitle:'Strategy · Multiplayer',tone:'blue',art:'connect4',path:'/connect-four'},
- battleship:{title:'Battleship',subtitle:'Tactical · Multiplayer',tone:'cyan',art:'battleship',path:'/battleship'},
- ttt:{title:'Tic-Tac-Toe',subtitle:'Fast · Multiplayer',tone:'purple',art:'ttt',path:'/tictactoeonline'}
+const API = import.meta.env.DEV
+  ? 'http://localhost:5000'
+  : import.meta.env.VITE_SOCKET_URL || 'https://game-server-1-sxiw.onrender.com';
+
+const GAME_META = {
+  ludo: { title: 'Ludo', subtitle: 'Classic · Multiplayer', tone: 'green', art: 'ludo', path: '/ludo' },
+  connect4: { title: 'Connect Four', subtitle: 'Strategy · Multiplayer', tone: 'blue', art: 'connect4', path: '/connect-four' },
+  battleship: { title: 'Battleship', subtitle: 'Tactical · Multiplayer', tone: 'cyan', art: 'battleship', path: '/battleship' },
+  ttt: { title: 'Tic-Tac-Toe', subtitle: 'Fast · Multiplayer', tone: 'purple', art: 'ttt', path: '/tictactoeonline' },
 };
-const formatGame=g=>GAME_META[g]?.title||g;
-const ago=iso=>{const s=Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/1000));return s<5?'now':s<60?s+'s ago':Math.floor(s/60)+'m ago'};
 
-function GameArt({type}){if(type==='ludo')return <div className="hub-art hub-art-ludo"><div className="art-die die-one">5</div><div className="art-die die-two">3</div><i className="pawn pawn-red">●</i><i className="pawn pawn-green">●</i><i className="pawn pawn-blue">●</i></div>;
-if(type==='connect4')return <div className="hub-art hub-art-connect4"><div className="connect-art-grid">{Array.from({length:42},(_,i)=><i key={i} className={i%9===0?'yellow':i%7===0?'red':''}/>)}</div></div>;
-if(type==='battleship')return <div className="hub-art hub-art-battleship"><span className="ship-silhouette">⚓</span><span className="ship-line ship-line-a"/><span className="ship-line ship-line-b"/></div>;
-return <div className="hub-art hub-art-ttt">{['×','○','×','○','×','○','×','○','×'].map((x,i)=><span key={i}>{x}</span>)}</div>}
+const formatGame = (g) => GAME_META[g]?.title || g;
 
-function BoardPreview({game}){if(game==='ttt')return <div className="preview-ttt">{Array.from({length:9},(_,i)=><span key={i} className={i%2?'':'x'}>{i%2?'○':'×'}</span>)}</div>;
-if(game==='connect4')return <div className="preview-connect">{Array.from({length:42},(_,i)=><i key={i} className={i%9===0?'yellow':i%7===0?'red':''}/>)}</div>;
-if(game==='ludo')return <div className="preview-ludo"><div className="lp lp-red">●</div><div className="lp lp-green">●</div><div className="lp lp-blue">●</div><div className="lp lp-yellow">●</div><div className="lp-center">◆</div></div>;
-return <div className="preview-battle">{Array.from({length:100},(_,i)=><i key={i} className={i%17===0?'ship':i%23===0?'hit':i%29===0?'miss':''}/>)}</div>}
+const ago = (iso) => {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 5) return 'now';
+  if (s < 60) return s + 's ago';
+  return Math.floor(s / 60) + 'm ago';
+};
 
-function Modal({title,onClose,children,wide=false}){return <div className="hub-modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><section className={'hub-modal '+(wide?'wide':'')}><header><div><span className="eyebrow">GAMEHUB</span><h2>{title}</h2></div><button onClick={onClose} aria-label="Close">×</button></header>{children}</section></div>}
+function GameArt({ type }) {
+  if (type === 'ludo') {
+    return (
+      <div className="hub-art hub-art-ludo">
+        <div className="art-die die-one">5</div>
+        <div className="art-die die-two">3</div>
+        <i className="pawn pawn-red">●</i>
+        <i className="pawn pawn-green">●</i>
+        <i className="pawn pawn-blue">●</i>
+      </div>
+    );
+  }
 
-function RoomsModal({rooms,onClose,onJoin,name,setName}){const[game,setGame]=useState('all');const filtered=game==='all'?rooms:rooms.filter(r=>r.game===game);const join=r=>{if(!name.trim()){setName('');return}localStorage.setItem('gamehub_name',name.trim().slice(0,20));window.location.href=(GAME_META[r.game]?.path||'/')+'?room='+encodeURIComponent(r.id)};return <Modal title="Live Rooms" onClose={onClose} wide><div className="hub-modal-toolbar"><input value={name} onChange={e=>setName(e.target.value)} placeholder="Your display name" maxLength={20}/><select value={game} onChange={e=>setGame(e.target.value)}><option value="all">All games</option>{Object.entries(GAME_META).map(([k,v])=><option key={k} value={k}>{v.title}</option>)}</select></div><div className="room-list">{filtered.length?filtered.map(r=><div className="room-row" key={r.id}><div><b>{formatGame(r.game)}</b><small>Room {r.id} · Round {r.round} · {r.status}</small></div><div className="room-players">{r.players.map(p=><span key={p.id}>{p.name}</span>)}</div><strong>{r.players.length}/{r.maxPlayers}</strong><button className="primary-btn" onClick={()=>join(r)}>Join</button></div>):<div className="empty-state">No active rooms right now. Create the first one.</div>}</div></Modal>}
+  if (type === 'connect4') {
+    return (
+      <div className="hub-art hub-art-connect4">
+        <div className="connect-art-grid">
+          {Array.from({ length: 42 }, (_, i) => (
+            <i key={i} className={i % 9 === 0 ? 'yellow' : i % 7 === 0 ? 'red' : ''} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-function LeaderboardModal({leaders,onClose}){return <Modal title="Leaderboard" onClose={onClose}><div className="leader-list">{leaders.length?leaders.map((p,i)=><div className="leader-row" key={p.name}><span className="rank">#{i+1}</span><span className="leader-avatar">{p.name.slice(0,1).toUpperCase()}</span><b>{p.name}</b><strong>{p.score} pts</strong></div>):<div className="empty-state">No completed rounds yet. Win a round to appear here.</div>}</div></Modal>}
+  if (type === 'battleship') {
+    return (
+      <div className="hub-art hub-art-battleship">
+        <span className="ship-silhouette">⚓</span>
+        <span className="ship-line ship-line-a" />
+        <span className="ship-line ship-line-b" />
+      </div>
+    );
+  }
 
-function SettingsModal({onClose,user,profile,logout,onProfile}){const[reduce,setReduce]=useState(localStorage.getItem('gamehub_reduce_motion')==='1');const[remember,setRemember]=useState(localStorage.getItem('gamehub_remember_name')!=='0');const save=(key,value)=>{localStorage.setItem(key,value?'1':'0');if(key==='gamehub_reduce_motion')document.documentElement.classList.toggle('reduce-motion',value)};return <Modal title="Settings" onClose={onClose}><div className="settings-list"><label><span><b>Reduce animations</b><small>Use a calmer interface during matches.</small></span><input type="checkbox" checked={reduce} onChange={e=>{setReduce(e.target.checked);save('gamehub_reduce_motion',e.target.checked)}}/></label><label><span><b>Remember display name</b><small>Keep your name ready for room joins.</small></span><input type="checkbox" checked={remember} onChange={e=>{setRemember(e.target.checked);save('gamehub_remember_name',e.target.checked);if(!e.target.checked)localStorage.removeItem('gamehub_name')}}/></label><div className="account-settings"><b>{profile?.username||user?.displayName||'Guest'}</b><small>{user?.email||'Guest mode — create an account to save progress.'}</small></div><div className="settings-account-actions">{user?<button className="secondary-btn" onClick={async()=>{await logout();onClose();window.location.href='/';}}>Log out</button>:<><Link className="secondary-btn" to="/login" onClick={onClose}>Log in</Link><Link className="primary-btn" to="/signup" onClick={onClose}>Create account</Link></>}</div><button className="secondary-btn" onClick={()=>{localStorage.removeItem('gamehub_name');alert('Saved display name cleared.')}}>Clear saved name</button></div></Modal>}
+  return (
+    <div className="hub-art hub-art-ttt">
+      {['×', '○', '×', '○', '×', '○', '×', '○', '×'].map((x, i) => (
+        <span key={i}>{x}</span>
+      ))}
+    </div>
+  );
+}
 
-function ProfileModal({onClose,user,profile}){const[matches,setMatches]=useState([]);useEffect(()=>{if(!user||!db)return;const uid=user.uid;(async()=>{const q=query(collection(db,'matches'),where('playerUids','array-contains',uid));const s=await getDocs(q);setMatches(s.docs.map(d=>({id:d.id,...d.data()})).slice(-10).reverse())})()},[user]);return <Modal title="Player Profile" onClose={onClose} wide><div className="profile-mini-hero"><div className="profile-big-avatar">{(profile?.username||user?.displayName||'P')[0].toUpperCase()}</div><div><span className="eyebrow">PLAYER PROFILE</span><h2>{profile?.username||user?.displayName||'Player'}</h2><small>{user?.email}</small></div><strong>{profile?.points||0}<small> pts</small></strong></div><div className="profile-stats">{[['Games',profile?.totalGames||0],['Wins',profile?.wins||0],['Losses',profile?.losses||0],['Draws',profile?.draws||0],['Win rate',(profile?.totalGames?Math.round((profile.wins||0)/profile.totalGames*100):0)+'%']].map(x=><div className="profile-stat" key={x[0]}><small>{x[0]}</small><b>{x[1]}</b></div>)}</div><div className="profile-history"><span className="eyebrow">RECENT MATCHES</span>{matches.length?matches.map(m=><div className="match-row" key={m.id}><div><b>{m.game}</b><small>Round {m.round} · Room {m.roomId}</small></div><strong>{m.result==='draw'?'DRAW':m.winnerUid===user.uid?'WIN':'LOSS'}</strong></div>):<div className="profile-empty">No completed matches yet.</div>}</div></Modal>}\nfunction VoiceModal({onClose}){return <Modal title="Voice Chat" onClose={onClose}><div className="voice-modal"><div className="voice-orb">♩</div><h3>Voice is ready inside a live room</h3><p>Join any multiplayer room and enable the microphone from the in-game Voice panel. No paid voice service is required.</p><div className="voice-actions"><Link className="primary-btn" to="/ludo" onClick={onClose}>Play Ludo</Link><Link className="secondary-btn" to="/connect-four" onClick={onClose}>Play Connect Four</Link></div></div></Modal>}
+function BoardPreview({ game }) {
+  if (game === 'ttt') {
+    return (
+      <div className="preview-ttt">
+        {Array.from({ length: 9 }, (_, i) => (
+          <span key={i} className={i % 2 ? '' : 'x'}>{i % 2 ? '○' : '×'}</span>
+        ))}
+      </div>
+    );
+  }
 
-function ActivityList({activity}){return <div className="activity-stack">{activity.length?activity.map((a,i)=><div className={'activity '+(['green','blue','purple','gold'][i%4])} key={a.id}><b>{a.text}</b><small>{formatGame(a.game)} <span>{ago(a.at)}</span></small></div>):<div className="activity-empty">Live activity will appear here when players create and play rooms.</div>}</div>}
+  if (game === 'connect4') {
+    return (
+      <div className="preview-connect">
+        {Array.from({ length: 42 }, (_, i) => (
+          <i key={i} className={i % 9 === 0 ? 'yellow' : i % 7 === 0 ? 'red' : ''} />
+        ))}
+      </div>
+    );
+  }
 
-function PreviewCard({game,room,onJoin}){const meta=GAME_META[game];return <article className={'preview-card preview-'+meta.tone}><div className="preview-heading"><div><b>{meta.title} Online</b><small>{meta.subtitle}</small></div><span className="preview-live">● {room?'LIVE':'OPEN'}</span></div>{room?<div className="preview-score"><span><i className="avatar avatar-red">{room.players[0]?.name?.[0]||'P'}</i>{room.players[0]?.name||'Player 1'} <strong>{room.scores?.[0]||0}</strong></span><em>Round {room.round}</em><span>{room.players[1]?.name||'Waiting…'} <strong>{room.scores?.[1]||0}</strong></span></div>:<div className="preview-empty"><b>No live match</b><small>Create or join a room to make this panel live.</small></div>}<BoardPreview game={game}/>{room?<button className="preview-turn live-action" onClick={()=>onJoin(room)}>Join Room <b>›</b></button>:<Link className="preview-turn live-action" to={meta.path||'/'}>Open Game <b>›</b></Link>}<div className="preview-chat"><span>◌</span><div>Live chat available in room</div><b>➤</b></div></article>}
+  if (game === 'ludo') {
+    return (
+      <div className="preview-ludo">
+        <div className="lp lp-red">●</div>
+        <div className="lp lp-green">●</div>
+        <div className="lp lp-blue">●</div>
+        <div className="lp lp-yellow">●</div>
+        <div className="lp-center">◆</div>
+      </div>
+    );
+  }
 
-export default function Mainmenu(){
- const navigate=useNavigate();const{user,profile,logout}=useAuth();const[hub,setHub]=useState({onlinePlayers:0,activeRooms:0,rooms:[],leaderboard:[],activity:[]});const[modal,setModal]=useState(null);const[name,setName]=useState(()=>localStorage.getItem('gamehub_name')||'');const[error,setError]=useState('');const[clock,setClock]=useState(Date.now());const[profileOpen,setProfileOpen]=useState(false);
- const load=useCallback(async()=>{try{const res=await fetch(API+'/api/hub',{cache:'no-store'});if(!res.ok)throw new Error();setHub(await res.json());setError('')}catch(e){setError('Live server data is temporarily unavailable. Games can still be opened normally.')}},[]);
- useEffect(()=>{load();const t=setInterval(load,3000);return()=>clearInterval(t)},[load]);useEffect(()=>{const t=setInterval(()=>setClock(Date.now()),5000);return()=>clearInterval(t)},[]);
- const rememberName=v=>{setName(v);if(localStorage.getItem('gamehub_remember_name')!=='0')localStorage.setItem('gamehub_name',v.trim().slice(0,20))};
- const openGame=path=>{if(name.trim())localStorage.setItem('gamehub_name',name.trim().slice(0,20));navigate(path)};
- const joinRoom=r=>{if(!name.trim()){setModal('rooms');setError('Enter your display name before joining a room.');return}localStorage.setItem('gamehub_name',name.trim().slice(0,20));navigate((GAME_META[r.game]?.path||'/')+'?room='+encodeURIComponent(r.id))};
- const rooms=hub.rooms||[];const leaders=hub.leaderboard||[];const activity=hub.activity||[];const displayName=profile?.username||user?.displayName||name||'Guest';
- const topRooms=useMemo(()=>rooms.slice(0,4),[rooms]);
- const refreshAgo=clock;
- return <main className="hub-page"><div className="hub-noise"/><div className="hub-dashboard">
-  <aside className="hub-sidebar"><div className="brand"><div className="brand-mark">⌁</div><div><strong>GameHub</strong><small>Play · Connect · Compete</small></div></div>
-   <nav className="hub-nav"><a className="active" href="#home"><span>⌂</span>Home</a><a href="#games"><span>ϟ</span>Quick Play</a><button onClick={()=>setModal('rooms')}><span>♧</span>Rooms</button><button onClick={()=>setModal('leaderboard')}><span>♜</span>Leaderboard</button><button onClick={()=>setModal('settings')}><span>⚙</span>Settings</button></nav>
-   <div className="sidebar-profile"><div className="profile-avatar">R</div><div><b>{displayName}</b><small><i/> {user?'Online':'Guest'}</small></div><span>⌄</span></div>
-  </aside>
-  <section className="hub-main" id="home"><header className="hub-header"><div><h1>{user?`Welcome back, ${displayName}!`:`Welcome to GameHub, ${displayName}!`}</h1><p>Good games. Better company.</p></div><div className="header-actions"><button aria-label="Live activity" onClick={()=>setModal('activity')}>♧<i className="header-dot"/></button><button aria-label="Voice chat" onClick={()=>setModal('voice')}>♩</button><button className="header-avatar" onClick={()=>setModal('settings')}>{displayName.slice(0,1).toUpperCase()}<i/></button></div></header>
-   <section className="hub-hero"><div className="hero-art"><span className="hero-pawn hero-pawn-a">●</span><span className="hero-pawn hero-pawn-b">●</span><span className="hero-die">5</span><span className="hero-die hero-die-two">4</span><span className="hero-die hero-die-three">6</span><b>♛</b></div><div className="hero-copy"><h2>Play. Compete. Have Fun.</h2><p>Choose a game and challenge your friends<br/>in real-time multiplayer battles.</p></div><button className="hero-online" onClick={()=>setModal('rooms')}><span><i/> Online Now</span><strong>{hub.onlinePlayers||0} <small>players</small></strong><div className="mini-avatars">{rooms.flatMap(r=>r.players).slice(0,5).map((p,i)=><i key={p.id}>{p.name[0]}</i>)}{hub.onlinePlayers>5&&<i>+</i>}</div><b>›</b></button></section>
-   <section className="featured-games" id="games">{Object.entries(GAME_META).map(([key,g])=><button key={key} onClick={()=>openGame(g.path)} className={'featured-game '+g.tone}><GameArt type={g.art}/><div className="game-copy"><h3>{g.title}</h3><p>{g.subtitle}</p></div><span className="game-play">Play <b>›</b></span></button>)}</section>
-   <section className="hub-previews">{['ttt','connect4','ludo','battleship'].map(game=><PreviewCard key={game} game={game} room={topRooms.find(r=>r.game===game)} onJoin={joinRoom}/>)}</section>
-  </section>
-  <aside className="hub-rail"><section className="rail-card features-card"><h2>Key Features in This Design</h2><div className="feature-item"><i className="feature-icon blue">▣</i><div><b>Match System</b><p>Rounds continue automatically and scores stay with the match.</p></div></div><div className="feature-item"><i className="feature-icon green">♧</i><div><b>Live Scoreboard</b><p>Scores and rounds come directly from the multiplayer server.</p></div></div><div className="feature-item"><i className="feature-icon gold">□</i><div><b>Floating Notifications</b><p>In-game events appear as timed overlays without forcing a scroll.</p></div></div><div className="feature-item"><i className="feature-icon purple">♧</i><div><b>Chat & Voice</b><p>Socket chat and peer-to-peer voice are available inside rooms.</p></div></div><div className="feature-item"><i className="feature-icon violet">⌁</i><div><b>Responsive Interface</b><p>The same dashboard adapts across desktop, tablet and mobile.</p></div></div></section>
-   <ActivityList activity={activity}/><section className="voice-card"><div className="voice-title"><span>♩</span><div><b>Voice Chat</b><small>{hub.onlinePlayers?'Available in live rooms':'Waiting for players'}</small></div><button onClick={()=>setModal('voice')}>◖</button></div><div className="voice-wave"><span>♩</span><i/><i/><i/><i/><i/><i/><i/><i/><i/><b>⌁</b></div></section>
-   <section className="mobile-section"><h2>Mobile Responsive</h2><p>Same real dashboard. Anywhere.</p><div className="phone"><div className="phone-top"><b>⌁ GameHub</b><span>☰</span></div><div className="phone-game"><small>🎲 Ludo</small><span>{hub.activeRooms} active room{hub.activeRooms===1?'':'s'}</span><button onClick={()=>openGame('/ludo')}>Play <i>›</i></button></div><div className="phone-turn">ϟ <b>{hub.onlinePlayers?'Live now':'Offline'}</b><small>{hub.onlinePlayers||0} connected players</small></div><div className="phone-score"><span>Rooms <b>{hub.activeRooms}</b></span><span>Online <b>{hub.onlinePlayers}</b></span></div><div className="phone-ludo"><div>●</div><div>●</div><div>◆</div><div>●</div></div><div className="phone-nav"><button onClick={()=>document.getElementById('home')?.scrollIntoView()}>⌂<small>Home</small></button><button onClick={()=>setModal('activity')}>□<small>Chat</small></button><button onClick={()=>setModal('voice')}>♩<small>Voice</small></button><button onClick={()=>setModal('settings')}>⋮<small>More</small></button></div></div></section>
-  </aside>
- </div>{error&&<div className="hub-live-error" onClick={()=>setError('')}>{error} <b>×</b></div>}
- {modal==='rooms'&&<RoomsModal rooms={rooms} onClose={()=>setModal(null)} onJoin={joinRoom} name={name} setName={rememberName}/>}
- {modal==='leaderboard'&&<LeaderboardModal leaders={leaders} onClose={()=>setModal(null)}/>}
- {modal==='settings'&&<SettingsModal onClose={()=>setModal(null)} user={user} profile={profile} logout={logout} onProfile={()=>setProfileOpen(true)}/>}
- {modal==='voice'&&<VoiceModal onClose={()=>setModal(null)}/>}
- {profileOpen&&user&&<ProfileModal onClose={()=>setProfileOpen(false)} user={user} profile={profile}/>} {modal==='activity'&&<Modal title="Live Activity" onClose={()=>setModal(null)}><ActivityList activity={activity}/></Modal>}
- </main>;
+  return (
+    <div className="preview-battle">
+      {Array.from({ length: 100 }, (_, i) => (
+        <i key={i} className={i % 17 === 0 ? 'ship' : i % 23 === 0 ? 'hit' : i % 29 === 0 ? 'miss' : ''} />
+      ))}
+    </div>
+  );
+}
+
+function Modal({ title, onClose, children, wide = false }) {
+  return (
+    <div className="hub-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <section className={'hub-modal ' + (wide ? 'wide' : '')}>
+        <header>
+          <div>
+            <span className="eyebrow">GAMEHUB</span>
+            <h2>{title}</h2>
+          </div>
+          <button onClick={onClose} aria-label="Close">×</button>
+        </header>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+function RoomsModal({ rooms, onClose, onJoin, name, setName }) {
+  const [game, setGame] = useState('all');
+  const filtered = game === 'all' ? rooms : rooms.filter((r) => r.game === game);
+
+  const join = (r) => {
+    if (!name.trim()) {
+      setName('');
+      return;
+    }
+    localStorage.setItem('gamehub_name', name.trim().slice(0, 20));
+    window.location.href = (GAME_META[r.game]?.path || '/') + '?room=' + encodeURIComponent(r.id);
+  };
+
+  return (
+    <Modal title="Live Rooms" onClose={onClose} wide>
+      <div className="hub-modal-toolbar">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your display name" maxLength={20} />
+        <select value={game} onChange={(e) => setGame(e.target.value)}>
+          <option value="all">All games</option>
+          {Object.entries(GAME_META).map(([k, v]) => (
+            <option key={k} value={k}>{v.title}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="room-list">
+        {filtered.length ? (
+          filtered.map((r) => (
+            <div className="room-row" key={r.id}>
+              <div>
+                <b>{formatGame(r.game)}</b>
+                <small>
+                  Room {r.id} · Round {r.round} · {r.status}
+                </small>
+              </div>
+              <div className="room-players">
+                {r.players.map((p) => (
+                  <span key={p.id}>{p.name}</span>
+                ))}
+              </div>
+              <strong>
+                {r.players.length}/{r.maxPlayers}
+              </strong>
+              <button className="primary-btn" onClick={() => join(r)}>
+                Join
+              </button>
+            </div>
+          ))
+        ) : (
+          <div className="empty-state">No active rooms right now. Create the first one.</div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function LeaderboardModal({ leaders, onClose }) {
+  return (
+    <Modal title="Leaderboard" onClose={onClose}>
+      <div className="leader-list">
+        {leaders.length ? (
+          leaders.map((p, i) => (
+            <div className="leader-row" key={p.name}>
+              <span className="rank">#{i + 1}</span>
+              <span className="leader-avatar">{p.name.slice(0, 1).toUpperCase()}</span>
+              <b>{p.name}</b>
+              <strong>{p.score} pts</strong>
+            </div>
+          ))
+        ) : (
+          <div className="empty-state">No completed rounds yet. Win a round to appear here.</div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function SettingsModal({ onClose, user, profile, logout }) {
+  const [reduce, setReduce] = useState(localStorage.getItem('gamehub_reduce_motion') === '1');
+  const [remember, setRemember] = useState(localStorage.getItem('gamehub_remember_name') !== '0');
+
+  const save = (key, value) => {
+    localStorage.setItem(key, value ? '1' : '0');
+    if (key === 'gamehub_reduce_motion') {
+      document.documentElement.classList.toggle('reduce-motion', value);
+    }
+  };
+
+  return (
+    <Modal title="Settings" onClose={onClose}>
+      <div className="settings-list">
+        <label>
+          <span>
+            <b>Reduce animations</b>
+            <small>Use a calmer interface during matches.</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={reduce}
+            onChange={(e) => {
+              setReduce(e.target.checked);
+              save('gamehub_reduce_motion', e.target.checked);
+            }}
+          />
+        </label>
+
+        <label>
+          <span>
+            <b>Remember display name</b>
+            <small>Keep your name ready for room joins.</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => {
+              setRemember(e.target.checked);
+              save('gamehub_remember_name', e.target.checked);
+              if (!e.target.checked) localStorage.removeItem('gamehub_name');
+            }}
+          />
+        </label>
+
+        <div className="account-settings">
+          <b>{profile?.username || user?.displayName || 'Guest'}</b>
+          <small>{user?.email || 'Guest mode — create an account to save progress.'}</small>
+        </div>
+
+        <div className="settings-account-actions">
+          {user ? (
+            <button
+              className="secondary-btn"
+              onClick={async () => {
+                await logout();
+                onClose();
+                window.location.href = '/';
+              }}
+            >
+              Log out
+            </button>
+          ) : (
+            <>
+              <Link className="secondary-btn" to="/login" onClick={onClose}>
+                Log in
+              </Link>
+              <Link className="primary-btn" to="/signup" onClick={onClose}>
+                Create account
+              </Link>
+            </>
+          )}
+        </div>
+
+        <button
+          className="secondary-btn"
+          onClick={() => {
+            localStorage.removeItem('gamehub_name');
+            alert('Saved display name cleared.');
+          }}
+        >
+          Clear saved name
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function ProfileModal({ onClose, user, profile }) {
+  const [matches, setMatches] = useState([]);
+
+  useEffect(() => {
+    if (!user || !db) return;
+    const uid = user.uid;
+
+    (async () => {
+      const q = query(collection(db, 'matches'), where('playerUids', 'array-contains', uid));
+      const s = await getDocs(q);
+      setMatches(
+        s.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .slice(-10)
+          .reverse()
+      );
+    })();
+  }, [user]);
+
+  return (
+    <Modal title="Player Profile" onClose={onClose} wide>
+      <div className="profile-mini-hero">
+        <div className="profile-big-avatar">{(profile?.username || user?.displayName || 'P')[0].toUpperCase()}</div>
+        <div>
+          <span className="eyebrow">PLAYER PROFILE</span>
+          <h2>{profile?.username || user?.displayName || 'Player'}</h2>
+          <small>{user?.email}</small>
+        </div>
+        <strong>
+          {profile?.points || 0}
+          <small> pts</small>
+        </strong>
+      </div>
+
+      <div className="profile-stats">
+        {[
+          ['Games', profile?.totalGames || 0],
+          ['Wins', profile?.wins || 0],
+          ['Losses', profile?.losses || 0],
+          ['Draws', profile?.draws || 0],
+          ['Win rate', profile?.totalGames ? Math.round(((profile.wins || 0) / profile.totalGames) * 100) + '%' : '0%'],
+        ].map(([label, value]) => (
+          <div className="profile-stat" key={label}>
+            <small>{label}</small>
+            <b>{value}</b>
+          </div>
+        ))}
+      </div>
+
+      <div className="profile-history">
+        <span className="eyebrow">RECENT MATCHES</span>
+        {matches.length ? (
+          matches.map((m) => (
+            <div className="match-row" key={m.id}>
+              <div>
+                <b>{m.game}</b>
+                <small>
+                  Round {m.round} · Room {m.roomId}
+                </small>
+              </div>
+              <strong>{m.result === 'draw' ? 'DRAW' : m.winnerUid === user.uid ? 'WIN' : 'LOSS'}</strong>
+            </div>
+          ))
+        ) : (
+          <div className="profile-empty">No completed matches yet.</div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function VoiceModal({ onClose }) {
+  return (
+    <Modal title="Voice Chat" onClose={onClose}>
+      <div className="voice-modal">
+        <div className="voice-orb">♩</div>
+        <h3>Voice is ready inside a live room</h3>
+        <p>Join any multiplayer room and enable the microphone from the in-game Voice panel. No paid voice service is required.</p>
+        <div className="voice-actions">
+          <Link className="primary-btn" to="/ludo" onClick={onClose}>
+            Play Ludo
+          </Link>
+          <Link className="secondary-btn" to="/connect-four" onClick={onClose}>
+            Play Connect Four
+          </Link>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ActivityList({ activity }) {
+  return (
+    <div className="activity-stack">
+      {activity.length ? (
+        activity.map((a, i) => (
+          <div className={'activity ' + ['green', 'blue', 'purple', 'gold'][i % 4]} key={a.id}>
+            <b>{a.text}</b>
+            <small>
+              {formatGame(a.game)} <span>{ago(a.at)}</span>
+            </small>
+          </div>
+        ))
+      ) : (
+        <div className="activity-empty">Live activity will appear here when players create and play rooms.</div>
+      )}
+    </div>
+  );
+}
+
+function PreviewCard({ game, room, onJoin }) {
+  const meta = GAME_META[game];
+
+  return (
+    <article className={'preview-card preview-' + meta.tone}>
+      <div className="preview-heading">
+        <div>
+          <b>{meta.title} Online</b>
+          <small>{meta.subtitle}</small>
+        </div>
+        <span className="preview-live">● {room ? 'LIVE' : 'OPEN'}</span>
+      </div>
+
+      {room ? (
+        <div className="preview-score">
+          <span>
+            <i className="avatar avatar-red">{room.players[0]?.name?.[0] || 'P'}</i>
+            {room.players[0]?.name || 'Player 1'} <strong>{room.scores?.[0] || 0}</strong>
+          </span>
+          <em>Round {room.round}</em>
+          <span>
+            {room.players[1]?.name || 'Waiting…'} <strong>{room.scores?.[1] || 0}</strong>
+          </span>
+        </div>
+      ) : (
+        <div className="preview-empty">
+          <b>No live match</b>
+          <small>Create or join a room to make this panel live.</small>
+        </div>
+      )}
+
+      <BoardPreview game={game} />
+
+      {room ? (
+        <button className="preview-turn live-action" onClick={() => onJoin(room)}>
+          Join Room <b>›</b>
+        </button>
+      ) : (
+        <Link className="preview-turn live-action" to={meta.path || '/'}>
+          Open Game <b>›</b>
+        </Link>
+      )}
+
+      <div className="preview-chat">
+        <span>◌</span>
+        <div>Live chat available in room</div>
+        <b>➤</b>
+      </div>
+    </article>
+  );
+}
+
+export default function Mainmenu() {
+  const navigate = useNavigate();
+  const { user, profile, logout } = useAuth();
+  const [hub, setHub] = useState({ onlinePlayers: 0, activeRooms: 0, rooms: [], leaderboard: [], activity: [] });
+  const [modal, setModal] = useState(null);
+  const [name, setName] = useState(() => localStorage.getItem('gamehub_name') || '');
+  const [error, setError] = useState('');
+  const [clock, setClock] = useState(Date.now());
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(API + '/api/hub', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Hub unavailable');
+      setHub(await res.json());
+      setError('');
+    } catch (e) {
+      setError('Live server data is temporarily unavailable. Games can still be opened normally.');
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 3000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  useEffect(() => {
+    const t = setInterval(() => setClock(Date.now()), 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const rememberName = (v) => {
+    setName(v);
+    if (localStorage.getItem('gamehub_remember_name') !== '0') {
+      localStorage.setItem('gamehub_name', v.trim().slice(0, 20));
+    }
+  };
+
+  const openGame = (path) => {
+    if (name.trim()) localStorage.setItem('gamehub_name', name.trim().slice(0, 20));
+    navigate(path);
+  };
+
+  const joinRoom = (r) => {
+    if (!name.trim()) {
+      setModal('rooms');
+      setError('Enter your display name before joining a room.');
+      return;
+    }
+    localStorage.setItem('gamehub_name', name.trim().slice(0, 20));
+    navigate((GAME_META[r.game]?.path || '/') + '?room=' + encodeURIComponent(r.id));
+  };
+
+  const rooms = hub.rooms || [];
+  const leaders = hub.leaderboard || [];
+  const activity = hub.activity || [];
+  const displayName = profile?.username || user?.displayName || name || 'Guest';
+  const topRooms = useMemo(() => rooms.slice(0, 4), [rooms]);
+
+  return (
+    <main className="hub-page">
+      <div className="hub-noise" />
+      <div className="hub-dashboard">
+        <aside className="hub-sidebar">
+          <div className="brand">
+            <div className="brand-mark">⌁</div>
+            <div>
+              <strong>GameHub</strong>
+              <small>Play · Connect · Compete</small>
+            </div>
+          </div>
+
+          <nav className="hub-nav">
+            <a className="active" href="#home">
+              <span>⌂</span>Home
+            </a>
+            <a href="#games">
+              <span>ϟ</span>Quick Play
+            </a>
+            <button onClick={() => setModal('rooms')}>
+              <span>♧</span>Rooms
+            </button>
+            <button onClick={() => setModal('leaderboard')}>
+              <span>♜</span>Leaderboard
+            </button>
+            <button onClick={() => setModal('settings')}>
+              <span>⚙</span>Settings
+            </button>
+          </nav>
+
+          <div className="sidebar-profile">
+            <div className="profile-avatar">R</div>
+            <div>
+              <b>{displayName}</b>
+              <small>
+                <i /> {user ? 'Online' : 'Guest'}
+              </small>
+            </div>
+            <span>⌄</span>
+          </div>
+        </aside>
+
+        <section className="hub-main" id="home">
+          <header className="hub-header">
+            <div>
+              <h1>{user ? `Welcome back, ${displayName}!` : `Welcome to GameHub, ${displayName}!`}</h1>
+              <p>Good games. Better company.</p>
+            </div>
+            <div className="header-actions">
+              <button aria-label="Live activity" onClick={() => setModal('activity')}>
+                ♧<i className="header-dot" />
+              </button>
+              <button aria-label="Voice chat" onClick={() => setModal('voice')}>
+                ♩
+              </button>
+              <button className="header-avatar" onClick={() => setModal('settings')}>
+                {displayName.slice(0, 1).toUpperCase()}
+                <i />
+              </button>
+            </div>
+          </header>
+
+          <section className="hub-hero">
+            <div className="hero-art">
+              <span className="hero-pawn hero-pawn-a">●</span>
+              <span className="hero-pawn hero-pawn-b">●</span>
+              <span className="hero-die">5</span>
+              <span className="hero-die hero-die-two">4</span>
+              <span className="hero-die hero-die-three">6</span>
+              <b>♛</b>
+            </div>
+            <div className="hero-copy">
+              <h2>Play. Compete. Have Fun.</h2>
+              <p>
+                Choose a game and challenge your friends
+                <br />
+                in real-time multiplayer battles.
+              </p>
+            </div>
+            <button className="hero-online" onClick={() => setModal('rooms')}>
+              <span>
+                <i /> Online Now
+              </span>
+              <strong>
+                {hub.onlinePlayers || 0} <small>players</small>
+              </strong>
+              <div className="mini-avatars">
+                {rooms
+                  .flatMap((r) => r.players)
+                  .slice(0, 5)
+                  .map((p, i) => (
+                    <i key={p.id || i}>{p.name[0]}</i>
+                  ))}
+                {hub.onlinePlayers > 5 && <i>+</i>}
+              </div>
+              <b>›</b>
+            </button>
+          </section>
+
+          <section className="featured-games" id="games">
+            {Object.entries(GAME_META).map(([key, g]) => (
+              <button key={key} onClick={() => openGame(g.path)} className={'featured-game ' + g.tone}>
+                <GameArt type={g.art} />
+                <div className="game-copy">
+                  <h3>{g.title}</h3>
+                  <p>{g.subtitle}</p>
+                </div>
+                <span className="game-play">
+                  Play <b>›</b>
+                </span>
+              </button>
+            ))}
+          </section>
+
+          <section className="hub-previews">
+            {['ttt', 'connect4', 'ludo', 'battleship'].map((game) => (
+              <PreviewCard key={game} game={game} room={topRooms.find((r) => r.game === game)} onJoin={joinRoom} />
+            ))}
+          </section>
+        </section>
+
+        <aside className="hub-rail">
+          <section className="rail-card features-card">
+            <h2>Key Features in This Design</h2>
+            <div className="feature-item">
+              <i className="feature-icon blue">▣</i>
+              <div>
+                <b>Match System</b>
+                <p>Rounds continue automatically and scores stay with the match.</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <i className="feature-icon green">♧</i>
+              <div>
+                <b>Live Scoreboard</b>
+                <p>Scores and rounds come directly from the multiplayer server.</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <i className="feature-icon gold">□</i>
+              <div>
+                <b>Floating Notifications</b>
+                <p>In-game events appear as timed overlays without forcing a scroll.</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <i className="feature-icon purple">♧</i>
+              <div>
+                <b>Chat & Voice</b>
+                <p>Socket chat and peer-to-peer voice are available inside rooms.</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <i className="feature-icon violet">⌁</i>
+              <div>
+                <b>Responsive Interface</b>
+                <p>The same dashboard adapts across desktop, tablet and mobile.</p>
+              </div>
+            </div>
+          </section>
+
+          <ActivityList activity={activity} />
+
+          <section className="voice-card">
+            <div className="voice-title">
+              <span>♩</span>
+              <div>
+                <b>Voice Chat</b>
+                <small>{hub.onlinePlayers ? 'Available in live rooms' : 'Waiting for players'}</small>
+              </div>
+              <button onClick={() => setModal('voice')}>◖</button>
+            </div>
+            <div className="voice-wave">
+              <span>♩</span>
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <b>⌁</b>
+            </div>
+          </section>
+
+          <section className="mobile-section">
+            <h2>Mobile Responsive</h2>
+            <p>Same real dashboard. Anywhere.</p>
+            <div className="phone">
+              <div className="phone-top">
+                <b>⌁ GameHub</b>
+                <span>☰</span>
+              </div>
+              <div className="phone-game">
+                <small>🎲 Ludo</small>
+                <span>{hub.activeRooms} active room{hub.activeRooms === 1 ? '' : 's'}</span>
+                <button onClick={() => openGame('/ludo')}>
+                  Play <i>›</i>
+                </button>
+              </div>
+              <div className="phone-turn">
+                ϟ <b>{hub.onlinePlayers ? 'Live now' : 'Offline'}</b>
+                <small>{hub.onlinePlayers || 0} connected players</small>
+              </div>
+              <div className="phone-score">
+                <span>
+                  Rooms <b>{hub.activeRooms}</b>
+                </span>
+                <span>
+                  Online <b>{hub.onlinePlayers}</b>
+                </span>
+              </div>
+              <div className="phone-ludo">
+                <div>●</div>
+                <div>●</div>
+                <div>◆</div>
+                <div>●</div>
+              </div>
+              <div className="phone-nav">
+                <button onClick={() => document.getElementById('home')?.scrollIntoView()}>
+                  ⌂<small>Home</small>
+                </button>
+                <button onClick={() => setModal('activity')}>
+                  □<small>Chat</small>
+                </button>
+                <button onClick={() => setModal('voice')}>
+                  ♩<small>Voice</small>
+                </button>
+                <button onClick={() => setModal('settings')}>
+                  ⋮<small>More</small>
+                </button>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      {error && (
+        <div className="hub-live-error" onClick={() => setError('')}>
+          {error} <b>×</b>
+        </div>
+      )}
+
+      {modal === 'rooms' && (
+        <RoomsModal rooms={rooms} onClose={() => setModal(null)} onJoin={joinRoom} name={name} setName={rememberName} />
+      )}
+      {modal === 'leaderboard' && <LeaderboardModal leaders={leaders} onClose={() => setModal(null)} />}
+      {modal === 'settings' && (
+        <SettingsModal onClose={() => setModal(null)} user={user} profile={profile} logout={logout} />
+      )}
+      {modal === 'voice' && <VoiceModal onClose={() => setModal(null)} />}
+      {profileOpen && user && <ProfileModal onClose={() => setProfileOpen(false)} user={user} profile={profile} />}
+      {modal === 'activity' && (
+        <Modal title="Live Activity" onClose={() => setModal(null)}>
+          <ActivityList activity={activity} />
+        </Modal>
+      )}
+    </main>
+  );
 }

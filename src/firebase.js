@@ -1,7 +1,3 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -16,7 +12,24 @@ if (!firebaseConfigured) {
   console.warn("Firebase is not configured. Add the VITE_FIREBASE_* variables to your local .env and Vercel project settings.");
 }
 
-const app = firebaseConfigured ? initializeApp(firebaseConfig) : null;
-export const auth = app ? getAuth(app) : null;
-export const db = app ? getFirestore(app) : null;
+let app = null;
+export let auth = null;
+export let db = null;
+
+if (firebaseConfigured) {
+  try {
+    const [{ initializeApp }, { getAuth }, { getFirestore }] = await Promise.all([
+      import(/* @vite-ignore */ 'firebase/app'),
+      import(/* @vite-ignore */ 'firebase/auth'),
+      import(/* @vite-ignore */ 'firebase/firestore'),
+    ]);
+
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  } catch (error) {
+    console.warn('Firebase SDK could not be initialized. Auth and Firestore will be disabled until the dependency is installed.', error);
+  }
+}
+
 export default app;
