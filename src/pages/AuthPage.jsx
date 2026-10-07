@@ -1,15 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { auth, db, firebaseConfigured } from "../firebase";
+import { auth, db, firebaseConfigured, loadFirebaseModule } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-
-async function loadFirebaseAuth() {
-  return import(new Function('return "firebase/auth"')());
-}
-
-async function loadFirebaseFirestore() {
-  return import(new Function('return "firebase/firestore"')());
-}
 
 export default function AuthPage({ mode = "login" }) {
   const navigate = useNavigate();
@@ -36,8 +28,14 @@ export default function AuthPage({ mode = "login" }) {
     if (isSignup && form.password !== form.confirm) return setError("Passwords do not match.");
     setBusy(true);
     try {
-      const authMod = await loadFirebaseAuth();
-      const firestoreMod = await loadFirebaseFirestore();
+      const [authMod, firestoreMod] = await Promise.all([
+        loadFirebaseModule("firebase/auth"),
+        loadFirebaseModule("firebase/firestore"),
+      ]);
+      if (!authMod || !firestoreMod) {
+        setError("Firebase authentication is unavailable in this environment.");
+        return;
+      }
       const {
         createUserWithEmailAndPassword,
         sendPasswordResetEmail,
@@ -89,7 +87,11 @@ export default function AuthPage({ mode = "login" }) {
     setError("");
     setNotice("");
     try {
-      const authMod = await loadFirebaseAuth();
+      const authMod = await loadFirebaseModule("firebase/auth");
+      if (!authMod) {
+        setError("Password reset is unavailable because Firebase auth is not loaded.");
+        return;
+      }
       await authMod.sendPasswordResetEmail(auth, form.email.trim());
       setNotice("Password reset email sent. Check your inbox.");
     } catch (err) {

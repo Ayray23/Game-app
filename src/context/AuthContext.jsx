@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { auth, db } from "../firebase";
+import { auth, db, loadFirebaseModule } from "../firebase";
 
 const AuthContext = createContext(null);
 
@@ -18,12 +18,14 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const authMod = await import(new Function('return "firebase/auth"')());
-        const firestoreMod = await import(new Function('return "firebase/firestore"')());
+        const [authMod, firestoreMod] = await Promise.all([
+          loadFirebaseModule("firebase/auth"),
+          loadFirebaseModule("firebase/firestore"),
+        ]);
 
-        if (!active) return;
+        if (!authMod || !firestoreMod || !active) return;
 
-        const { onAuthStateChanged, signOut } = authMod;
+        const { onAuthStateChanged } = authMod;
         const { doc, onSnapshot, setDoc, serverTimestamp } = firestoreMod;
 
         let stopProfile = () => {};
@@ -83,7 +85,7 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(() => ({
     user, profile, loading,
-    logout: () => (auth ? import(new Function('return "firebase/auth"')()).then(({ signOut }) => signOut(auth)).catch(() => Promise.resolve()) : Promise.resolve()),
+    logout: () => (auth ? loadFirebaseModule("firebase/auth").then((mod) => mod ? mod.signOut(auth) : undefined).catch(() => undefined) : Promise.resolve()),
   }), [user, profile, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

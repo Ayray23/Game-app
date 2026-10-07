@@ -1,6 +1,5 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import LudoBoard from './LudoBoard';
 
 const PLAYER_META = {
   red: { name: 'Red', color: '#ff5a75' },
@@ -9,41 +8,22 @@ const PLAYER_META = {
   green: { name: 'Green', color: '#46d39a' },
 };
 
+const TRACK_CELLS = Array.from({ length: 52 }, (_, index) => {
+  const angle = (index / 52) * Math.PI * 2 - Math.PI / 2;
+  const radius = 4.8;
+  const row = Math.round(7 + Math.sin(angle) * radius);
+  const col = Math.round(7 + Math.cos(angle) * radius);
+  return [row, col];
+});
+
 const START_INDEX = { red: 0, blue: 13, yellow: 26, green: 39 };
 const SAFE_SQUARES = [0, 8, 13, 21, 26, 34, 39, 47];
 const BASE_SLOTS = {
-  red: [
-    { row: 1, col: 1 },
-    { row: 1, col: 3 },
-    { row: 3, col: 1 },
-    { row: 3, col: 3 },
-  ],
-  blue: [
-    { row: 11, col: 1 },
-    { row: 11, col: 3 },
-    { row: 13, col: 1 },
-    { row: 13, col: 3 },
-  ],
-  yellow: [
-    { row: 11, col: 11 },
-    { row: 11, col: 13 },
-    { row: 13, col: 11 },
-    { row: 13, col: 13 },
-  ],
-  green: [
-    { row: 1, col: 11 },
-    { row: 1, col: 13 },
-    { row: 3, col: 11 },
-    { row: 3, col: 13 },
-  ],
+  red: [[1, 1], [1, 3], [3, 1], [3, 3]],
+  blue: [[11, 1], [11, 3], [13, 1], [13, 3]],
+  yellow: [[11, 11], [11, 13], [13, 11], [13, 13]],
+  green: [[1, 11], [1, 13], [3, 11], [3, 13]],
 };
-
-const TRACK_CELLS = Array.from({ length: 52 }, (_, index) => {
-  const angle = (index / 52) * Math.PI * 2 - Math.PI / 2;
-  const row = Math.round(7 + Math.sin(angle) * 4.8);
-  const col = Math.round(7 + Math.cos(angle) * 4.8);
-  return { row, col };
-});
 
 const createPlayers = () =>
   Object.entries(PLAYER_META).map(([color, meta]) => ({
@@ -65,27 +45,27 @@ const getTrackPosition = (playerColor, position) => {
 
 const getHomePosition = (playerColor, position) => {
   if (position < 52 || position > 57) return null;
-
-  if (playerColor === 'red') return { row: 6, col: 5 + (position - 52) };
-  if (playerColor === 'blue') return { row: 5 + (position - 52), col: 8 };
-  if (playerColor === 'green') return { row: 8, col: 9 - (position - 52) };
-  if (playerColor === 'yellow') return { row: 9 - (position - 52), col: 8 };
-
-  return { row: 7, col: 7 };
+  if (playerColor === 'red') return [6, 5 + (position - 52)];
+  if (playerColor === 'blue') return [5 + (position - 52), 6];
+  if (playerColor === 'yellow') return [8, 9 - (position - 52)];
+  if (playerColor === 'green') return [9 - (position - 52), 8];
+  return [7, 7];
 };
 
 const getTokenBoardCell = (playerColor, token) => {
   if (token.position === -1) {
     const slotIndex = Number(token.id.split('-')[1]);
     const slot = BASE_SLOTS[playerColor]?.[slotIndex];
-    return slot || { row: 7, col: 7 };
+    return slot ? { row: slot[0], col: slot[1] } : { row: 7, col: 7 };
   }
 
   if (token.position >= 0 && token.position < 52) {
-    return getTrackPosition(playerColor, token.position) || { row: 7, col: 7 };
+    const [row, col] = getTrackPosition(playerColor, token.position) || [7, 7];
+    return { row, col };
   }
 
-  return getHomePosition(playerColor, token.position) || { row: 7, col: 7 };
+  const [row, col] = getHomePosition(playerColor, token.position) || [7, 7];
+  return { row, col };
 };
 
 const getLegalMoves = (player, value) => {
@@ -100,6 +80,15 @@ const getLegalMoves = (player, value) => {
     .map((token) => token.id);
 };
 
+const getCellTone = (row, col) => {
+  if (row <= 4 && col <= 4) return 'home-red';
+  if (row <= 4 && col >= 10) return 'home-blue';
+  if (row >= 10 && col <= 4) return 'home-green';
+  if (row >= 10 && col >= 10) return 'home-yellow';
+  if (row >= 5 && row <= 9 && col >= 5 && col <= 9) return 'center';
+  return 'track';
+};
+
 export default function Ludo() {
   const [players, setPlayers] = useState(createPlayers);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -110,14 +99,45 @@ export default function Ludo() {
   const activePlayer = players[currentIndex];
   const legalMoves = useMemo(() => getLegalMoves(activePlayer, dice), [activePlayer, dice]);
 
+  const boardCells = useMemo(() => {
+    const cells = [];
+
+    for (let row = 0; row < 15; row += 1) {
+      for (let col = 0; col < 15; col += 1) {
+        const tone = getCellTone(row, col);
+        const tokens = players.flatMap((player) =>
+          player.tokens
+            .filter((token) => !token.finished)
+            .map((token) => ({ token, board: getTokenBoardCell(player.color, token) }))
+            .filter((entry) => entry.board && entry.board.row === row && entry.board.col === col)
+            .map((entry) => ({
+              color: player.color,
+              id: entry.token.id,
+              name: player.name,
+            }))
+        );
+
+        cells.push({ row, col, tone, tokens });
+      }
+    }
+
+    return cells;
+  }, [players]);
+
   const moveToken = (tokenId) => {
     if (dice === null || winner) return;
 
     const token = activePlayer.tokens.find((item) => item.id === tokenId);
     if (!token || !legalMoves.includes(tokenId)) return;
 
-    const nextPosition = token.position === -1 ? 0 : token.position + dice;
-    if (nextPosition > 57) return;
+    let nextPosition = token.position;
+
+    if (token.position === -1) {
+      nextPosition = 0;
+    } else {
+      nextPosition = token.position + dice;
+      if (nextPosition > 57) return;
+    }
 
     const nextPlayers = players.map((player, index) => {
       if (index !== currentIndex) return player;
@@ -134,19 +154,19 @@ export default function Ludo() {
       };
     });
 
-    const targetCell = getTokenBoardCell(activePlayer.color, { ...token, position: nextPosition });
-
-    for (const player of nextPlayers) {
-      if (player.color === activePlayer.color) continue;
-
-      for (const enemy of player.tokens) {
-        if (enemy.finished || enemy.position < 0 || enemy.position >= 52) continue;
-
-        const enemyCell = getTokenBoardCell(player.color, enemy);
-        if (enemyCell.row === targetCell.row && enemyCell.col === targetCell.col) {
-          const targetIndex = nextPosition % 52;
-          if (!SAFE_SQUARES.includes(targetIndex)) {
-            enemy.position = -1;
+    const targetCell = getTokenBoardCell(activePlayer.color, { position: nextPosition, id: tokenId });
+    if (targetCell) {
+      for (const player of nextPlayers) {
+        if (player.color === activePlayer.color) continue;
+        for (const item of player.tokens) {
+          if (item.finished || item.position < 0 || item.position >= 52) continue;
+          const enemyCell = getTokenBoardCell(player.color, item);
+          if (enemyCell && enemyCell.row === targetCell.row && enemyCell.col === targetCell.col) {
+            const targetIndex = nextPosition % 52;
+            const safeHit = SAFE_SQUARES.includes(targetIndex);
+            if (!safeHit) {
+              item.position = -1;
+            }
           }
         }
       }
@@ -224,60 +244,25 @@ export default function Ludo() {
 
           <div className="ludo-modern-layout">
             <div className="ludo-board-panel">
-              <div className="ludo-board-svg-wrap">
-                <LudoBoard>
-                  {players.map((player) =>
-                    player.tokens.map((token) => {
-                      const tokenCell = getTokenBoardCell(player.color, token);
-                      const x = (tokenCell.col + 0.5) * 40;
-                      const y = (tokenCell.row + 0.5) * 40;
-                      const isLegal = legalMoves.includes(token.id);
-
-                      return (
-                        <g
-                          key={token.id}
-                          opacity={token.finished ? 0.65 : 1}
-                          style={{ cursor: dice !== null && isLegal ? 'pointer' : 'default' }}
-                          onClick={() => {
-                            if (dice !== null && isLegal) moveToken(token.id);
-                          }}
-                        >
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={token.position === -1 ? 11 : 10}
-                            fill={PLAYER_META[player.color].color}
-                            stroke="#ffffff"
-                            strokeWidth={isLegal ? 3 : 2}
-                          />
-                          <text
-                            x={x}
-                            y={y + 4}
-                            textAnchor="middle"
-                            fontSize="10"
-                            fontWeight="700"
-                            fill="#ffffff"
+              <div className="ludo-board-grid">
+                {boardCells.map(({ row, col, tone, tokens }) => (
+                  <div key={`${row}-${col}`} className={`ludo-board-cell ${tone}`}>
+                    {tokens.length > 0 && (
+                      <div className="ludo-token-stack">
+                        {tokens.map((token) => (
+                          <span
+                            key={`${token.color}-${token.id}`}
+                            className={`ludo-token token-${token.color}`}
+                            title={token.name}
                           >
-                            {Number(token.id.split('-')[1]) + 1}
-                          </text>
-                        </g>
-                      );
-                    })
-                  )}
-
-                  <g>
-                    <rect x="255" y="500" width="90" height="90" rx="18" fill="#121c2d" stroke="#8a7bff" strokeWidth="3" />
-                    <text x="300" y="556" textAnchor="middle" fontSize="34" fontWeight="800" fill="#f7f9ff">
-                      {dice ?? '?'}
-                    </text>
-                  </g>
-                </LudoBoard>
-              </div>
-
-              <div className="ludo-board-actions">
-                <button className="primary-btn board-dice-btn" disabled={dice !== null || Boolean(winner)} onClick={rollDice}>
-                  {dice === null ? 'Roll Dice' : 'Rolled'}
-                </button>
+                            ●
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {row === 7 && col === 7 && <span className="ludo-center-mark">✦</span>}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -301,6 +286,13 @@ export default function Ludo() {
                     <strong>{player.tokens.filter((token) => token.finished).length}</strong>
                   </div>
                 ))}
+              </div>
+
+              <div className="dice-panel">
+                <div className={`dice-box ${dice !== null ? 'rolled' : ''}`}>{dice ?? '?'}</div>
+                <button className="primary-btn" disabled={dice !== null || Boolean(winner)} onClick={rollDice}>
+                  {dice === null ? 'Roll Dice' : 'Rolled'}
+                </button>
               </div>
 
               <div className="move-panel">
