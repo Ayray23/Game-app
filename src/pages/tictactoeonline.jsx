@@ -3,7 +3,7 @@ import{io}from'socket.io-client';
 import{useNavigate}from'react-router-dom';
 import{sounds}from'../lib/audio';
 import VoiceChat from'../component/VoiceChat';
-import GameHUD from'../component/GameHUD';
+import GameHUD from'../component/GameHUD';import{auth}from'../firebase';
 
 const SOCKET_URL=import.meta.env.DEV?'http://localhost:5000':(import.meta.env.VITE_SOCKET_URL||'https://game-server-1-sxiw.onrender.com');
 const socket=io(SOCKET_URL,{autoConnect:false});
