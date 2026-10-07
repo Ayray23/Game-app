@@ -1,157 +1,69 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React,{useCallback,useEffect,useMemo,useState}from'react';
+import{Link,useNavigate}from'react-router-dom';
 
-const games = [
-  { to:'/ludo', title:'Ludo', subtitle:'Classic · Multiplayer', tone:'green', art:'ludo' },
-  { to:'/connect-four', title:'Connect Four', subtitle:'Strategy · Multiplayer', tone:'blue', art:'connect4' },
-  { to:'/battleship', title:'Battleship', subtitle:'Tactical · Multiplayer', tone:'cyan', art:'battleship' },
-  { to:'/tictactoeonline', title:'Tic-Tac-Toe', subtitle:'Fast · Multiplayer', tone:'purple', art:'ttt' },
-];
+const API=import.meta.env.VITE_SOCKET_URL||'https://game-server-1-sxiw.onrender.com';
+const GAME_META={
+ ludo:{title:'Ludo',subtitle:'Classic · Multiplayer',tone:'green',art:'ludo',path:'/ludo'},
+ connect4:{title:'Connect Four',subtitle:'Strategy · Multiplayer',tone:'blue',art:'connect4',path:'/connect-four'},
+ battleship:{title:'Battleship',subtitle:'Tactical · Multiplayer',tone:'cyan',art:'battleship'},
+ ttt:{title:'Tic-Tac-Toe',subtitle:'Fast · Multiplayer',tone:'purple',art:'ttt',path:'/tictactoeonline'}
+};
+const formatGame=g=>GAME_META[g]?.title||g;
+const ago=iso=>{const s=Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/1000));return s<5?'now':s<60?s+'s ago':Math.floor(s/60)+'m ago'};
 
-function GameArt({ type }) {
-  if (type === 'ludo') return (
-    <div className="hub-art hub-art-ludo" aria-hidden="true">
-      <div className="art-die die-one">5</div><div className="art-die die-two">3</div>
-      <i className="pawn pawn-red">●</i><i className="pawn pawn-green">●</i><i className="pawn pawn-blue">●</i>
-    </div>
-  );
+function GameArt({type}){if(type==='ludo')return <div className="hub-art hub-art-ludo"><div className="art-die die-one">5</div><div className="art-die die-two">3</div><i className="pawn pawn-red">●</i><i className="pawn pawn-green">●</i><i className="pawn pawn-blue">●</i></div>;
+if(type==='connect4')return <div className="hub-art hub-art-connect4"><div className="connect-art-grid">{Array.from({length:42},(_,i)=><i key={i} className={i%9===0?'yellow':i%7===0?'red':''}/>)}</div></div>;
+if(type==='battleship')return <div className="hub-art hub-art-battleship"><span className="ship-silhouette">⚓</span><span className="ship-line ship-line-a"/><span className="ship-line ship-line-b"/></div>;
+return <div className="hub-art hub-art-ttt">{['×','○','×','○','×','○','×','○','×'].map((x,i)=><span key={i}>{x}</span>)}</div>}
 
-  if (type === 'connect4') return (
-    <div className="hub-art hub-art-connect4" aria-hidden="true">
-      <div className="connect-art-grid">{Array.from({length:42},(_,i)=><i key={i} className={i%9===0?'yellow':i%7===0?'red':''}/>)}</div>
-    </div>
-  );
+function BoardPreview({game}){if(game==='ttt')return <div className="preview-ttt">{Array.from({length:9},(_,i)=><span key={i} className={i%2?'':'x'}>{i%2?'○':'×'}</span>)}</div>;
+if(game==='connect4')return <div className="preview-connect">{Array.from({length:42},(_,i)=><i key={i} className={i%9===0?'yellow':i%7===0?'red':''}/>)}</div>;
+if(game==='ludo')return <div className="preview-ludo"><div className="lp lp-red">●</div><div className="lp lp-green">●</div><div className="lp lp-blue">●</div><div className="lp lp-yellow">●</div><div className="lp-center">◆</div></div>;
+return <div className="preview-battle">{Array.from({length:100},(_,i)=><i key={i} className={i%17===0?'ship':i%23===0?'hit':i%29===0?'miss':''}/>)}</div>}
 
-  if (type === 'battleship') return (
-    <div className="hub-art hub-art-battleship" aria-hidden="true">
-      <span className="ship-silhouette">⚓</span><span className="ship-line ship-line-a"/><span className="ship-line ship-line-b"/>
-    </div>
-  );
+function Modal({title,onClose,children,wide=false}){return <div className="hub-modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><section className={'hub-modal '+(wide?'wide':'')}><header><div><span className="eyebrow">GAMEHUB</span><h2>{title}</h2></div><button onClick={onClose} aria-label="Close">×</button></header>{children}</section></div>}
 
-  return (
-    <div className="hub-art hub-art-ttt" aria-hidden="true">
-      <span>×</span><span>○</span><span>×</span><span>○</span><span>×</span><span>○</span><span>×</span><span>○</span><span>×</span>
-    </div>
-  );
-}
+function RoomsModal({rooms,onClose,onJoin,name,setName}){const[game,setGame]=useState('all');const filtered=game==='all'?rooms:rooms.filter(r=>r.game===game);const join=r=>{if(!name.trim()){setName('');return}localStorage.setItem('gamehub_name',name.trim().slice(0,20));window.location.href=(GAME_META[r.game]?.path||'/')+'?room='+encodeURIComponent(r.id)};return <Modal title="Live Rooms" onClose={onClose} wide><div className="hub-modal-toolbar"><input value={name} onChange={e=>setName(e.target.value)} placeholder="Your display name" maxLength={20}/><select value={game} onChange={e=>setGame(e.target.value)}><option value="all">All games</option>{Object.entries(GAME_META).map(([k,v])=><option key={k} value={k}>{v.title}</option>)}</select></div><div className="room-list">{filtered.length?filtered.map(r=><div className="room-row" key={r.id}><div><b>{formatGame(r.game)}</b><small>Room {r.id} · Round {r.round} · {r.status}</small></div><div className="room-players">{r.players.map(p=><span key={p.id}>{p.name}</span>)}</div><strong>{r.players.length}/{r.maxPlayers}</strong><button className="primary-btn" onClick={()=>join(r)}>Join</button></div>):<div className="empty-state">No active rooms right now. Create the first one.</div>}</div></Modal>}
 
-function TttPreview(){
-  const cells=['×','○','×','○','×','○','×','○','×'];
-  return <div className="preview-ttt">{cells.map((x,i)=><span key={i} className={x==='×'?'x':''}>{x}</span>)}</div>;
-}
-function ConnectPreview(){
-  return <div className="preview-connect">{Array.from({length:42},(_,i)=><i key={i} className={[3,10,11,17,18,19,24,25,26,27,32,33,34,40].includes(i)?'red':[4,5,12,13,20,21,28,29,35,36].includes(i)?'yellow':''}/>)}</div>;
-}
-function LudoPreview(){
-  return <div className="preview-ludo"><div className="lp lp-red">●</div><div className="lp lp-green">●</div><div className="lp lp-blue">●</div><div className="lp lp-yellow">●</div><div className="lp-center">◆</div></div>;
-}
-function BattlePreview(){
-  return <div className="preview-battle">{Array.from({length:100},(_,i)=><i key={i} className={[12,13,14,15,25,35,55,65,66,67,68,69,70].includes(i)?'ship':[4,18,43,76,88].includes(i)?'hit':[8,29,58,91].includes(i)?'miss':''}/>)}</div>;
-}
+function LeaderboardModal({leaders,onClose}){return <Modal title="Leaderboard" onClose={onClose}><div className="leader-list">{leaders.length?leaders.map((p,i)=><div className="leader-row" key={p.name}><span className="rank">#{i+1}</span><span className="leader-avatar">{p.name.slice(0,1).toUpperCase()}</span><b>{p.name}</b><strong>{p.score} pts</strong></div>):<div className="empty-state">No completed rounds yet. Win a round to appear here.</div>}</div></Modal>}
 
-function PreviewCard({title,subtitle,type,children,tone}){
-  return <article className={'preview-card '+tone}>
-    <div className="preview-heading"><div><b>{title}</b><small>{subtitle}</small></div><span className="preview-live">● LIVE</span></div>
-    <div className="preview-score"><span><i className="avatar avatar-red">R</i> Raymond <strong>3</strong></span><em>Round 4</em><span>John <strong>1</strong> <i className="avatar avatar-gold">J</i></span></div>
-    {children}
-    <div className="preview-turn">ϟ <b>Your Turn</b><small>Make your move</small></div>
-    <div className="preview-chat"><span>◌</span><div>Type a message...</div><b>➤</b></div>
-  </article>;
-}
+function SettingsModal({onClose}){const[reduce,setReduce]=useState(localStorage.getItem('gamehub_reduce_motion')==='1');const[remember,setRemember]=useState(localStorage.getItem('gamehub_remember_name')!=='0');const save=(key,value)=>{localStorage.setItem(key,value?'1':'0');if(key==='gamehub_reduce_motion')document.documentElement.classList.toggle('reduce-motion',value)};return <Modal title="Settings" onClose={onClose}><div className="settings-list"><label><span><b>Reduce animations</b><small>Use a calmer interface during matches.</small></span><input type="checkbox" checked={reduce} onChange={e=>{setReduce(e.target.checked);save('gamehub_reduce_motion',e.target.checked)}}/></label><label><span><b>Remember display name</b><small>Keep your name ready for room joins.</small></span><input type="checkbox" checked={remember} onChange={e=>{setRemember(e.target.checked);save('gamehub_remember_name',e.target.checked);if(!e.target.checked)localStorage.removeItem('gamehub_name')}}/></label><button className="secondary-btn" onClick={()=>{localStorage.removeItem('gamehub_name');alert('Saved display name cleared.')}}>Clear saved name</button></div></Modal>}
+
+function VoiceModal({onClose}){return <Modal title="Voice Chat" onClose={onClose}><div className="voice-modal"><div className="voice-orb">♩</div><h3>Voice is ready inside a live room</h3><p>Join any multiplayer room and enable the microphone from the in-game Voice panel. No paid voice service is required.</p><div className="voice-actions"><Link className="primary-btn" to="/ludo" onClick={onClose}>Play Ludo</Link><Link className="secondary-btn" to="/connect-four" onClick={onClose}>Play Connect Four</Link></div></div></Modal>}
+
+function ActivityList({activity}){return <div className="activity-stack">{activity.length?activity.map((a,i)=><div className={'activity '+(['green','blue','purple','gold'][i%4])} key={a.id}><b>{a.text}</b><small>{formatGame(a.game)} <span>{ago(a.at)}</span></small></div>):<div className="activity-empty">Live activity will appear here when players create and play rooms.</div>}</div>}
+
+function PreviewCard({game,room,onJoin}){const meta=GAME_META[game];return <article className={'preview-card preview-'+meta.tone}><div className="preview-heading"><div><b>{meta.title} Online</b><small>{meta.subtitle}</small></div><span className="preview-live">● {room?'LIVE':'OPEN'}</span></div>{room?<div className="preview-score"><span><i className="avatar avatar-red">{room.players[0]?.name?.[0]||'P'}</i>{room.players[0]?.name||'Player 1'} <strong>{room.scores?.[0]||0}</strong></span><em>Round {room.round}</em><span>{room.players[1]?.name||'Waiting…'} <strong>{room.scores?.[1]||0}</strong></span></div>:<div className="preview-empty"><b>No live match</b><small>Create or join a room to make this panel live.</small></div>}<BoardPreview game={game}/>{room?<button className="preview-turn live-action" onClick={()=>onJoin(room)}>Join Room <b>›</b></button>:<Link className="preview-turn live-action" to={meta.path||'/'}>Open Game <b>›</b></Link>}<div className="preview-chat"><span>◌</span><div>Live chat available in room</div><b>➤</b></div></article>}
 
 export default function Mainmenu(){
-  return (
-    <main className="hub-page">
-      <div className="hub-noise" />
-      <div className="hub-dashboard">
-        <aside className="hub-sidebar">
-          <div className="brand">
-            <div className="brand-mark">⌁</div>
-            <div><strong>GameHub</strong><small>Play · Connect · Compete</small></div>
-          </div>
-          <nav className="hub-nav">
-            <a className="active" href="#home"><span>⌂</span>Home</a>
-            <a href="#games"><span>ϟ</span>Quick Play</a>
-            <a href="#rooms"><span>♧</span>Rooms</a>
-            <a href="#leaderboard"><span>♜</span>Leaderboard</a>
-            <a href="#settings"><span>⚙</span>Settings</a>
-          </nav>
-          <div className="sidebar-profile">
-            <div className="profile-avatar">R</div>
-            <div><b>Raymond</b><small><i/> Online</small></div>
-            <span>⌄</span>
-          </div>
-        </aside>
-
-        <section className="hub-main" id="home">
-          <header className="hub-header">
-            <div><h1>Welcome back, Raymond!</h1><p>Good games. Better company.</p></div>
-            <div className="header-actions"><button aria-label="Notifications">♧</button><button aria-label="Voice">♩</button><div className="header-avatar">R<i/></div></div>
-          </header>
-
-          <section className="hub-hero">
-            <div className="hero-art">
-              <span className="hero-pawn hero-pawn-a">●</span><span className="hero-pawn hero-pawn-b">●</span>
-              <span className="hero-die">5</span><span className="hero-die hero-die-two">4</span><span className="hero-die hero-die-three">6</span>
-              <b>♛</b>
-            </div>
-            <div className="hero-copy"><h2>Play. Compete. Have Fun.</h2><p>Choose a game and challenge your friends<br/>in real-time multiplayer battles.</p></div>
-            <div className="hero-online"><span><i/> Online Now</span><strong>12,486 <small>players</small></strong><div className="mini-avatars"><i>R</i><i>J</i><i>A</i><i>M</i><i>+</i></div><b>›</b></div>
-          </section>
-
-          <section className="featured-games" id="games">
-            {games.map(game=>(
-              <Link key={game.to} to={game.to} className={'featured-game '+game.tone}>
-                <GameArt type={game.art}/>
-                <div className="game-copy"><h3>{game.title}</h3><p>{game.subtitle}</p></div>
-                <span className="game-play">Play <b>›</b></span>
-              </Link>
-            ))}
-          </section>
-
-          <section className="hub-previews">
-            <PreviewCard title="Tic-Tac-Toe Online" subtitle="Clean. Focused. Competitive." tone="preview-blue"><TttPreview/></PreviewCard>
-            <PreviewCard title="Connect Four Online" subtitle="Strategy. 4 in a row." tone="preview-red"><ConnectPreview/></PreviewCard>
-            <PreviewCard title="Ludo Online" subtitle="Roll. Move. Win." tone="preview-green"><LudoPreview/></PreviewCard>
-            <PreviewCard title="Battleship Online" subtitle="Find. Hit. Sink." tone="preview-cyan"><BattlePreview/></PreviewCard>
-          </section>
-        </section>
-
-        <aside className="hub-rail">
-          <section className="rail-card features-card">
-            <h2>Key Features in This Design</h2>
-            <div className="feature-item"><i className="feature-icon blue">▣</i><div><b>Match System</b><p>No more “Play Again” after every round. Keep playing until the match ends.</p></div></div>
-            <div className="feature-item"><i className="feature-icon green">♧</i><div><b>Scoreboard</b><p>Track round wins and match progress in real time.</p></div></div>
-            <div className="feature-item"><i className="feature-icon gold">□</i><div><b>Floating Notifications</b><p>Important events show as overlay and disappear automatically.</p></div></div>
-            <div className="feature-item"><i className="feature-icon purple">♧</i><div><b>Chat & Voice</b><p>Compact, non-intrusive UI. Keep the focus on the game.</p></div></div>
-            <div className="feature-item"><i className="feature-icon violet">⌁</i><div><b>Modern Dark Theme</b><p>Clean, immersive, and responsive across all devices.</p></div></div>
-          </section>
-
-          <section className="activity-stack">
-            <div className="activity green"><b>♟ John joined the room</b><small>2s ago</small></div>
-            <div className="activity blue"><b>ϟ It's your turn!</b><small>Make your move <span>2s ago</span></small></div>
-            <div className="activity purple"><b>♧ John hit your ship!</b><small>Battleship <span>2s ago</span></small></div>
-            <div className="activity gold"><b>♛ You won the round!</b><small>+1 point <span>2s ago</span></small></div>
-          </section>
-
-          <section className="voice-card">
-            <div className="voice-title"><span>♩</span><div><b>Voice Chat</b><small>John is speaking...</small></div><button>◖</button></div>
-            <div className="voice-wave"><span>♩</span><i/><i/><i/><i/><i/><i/><i/><i/><i/><b>⌁</b></div>
-          </section>
-
-          <section className="mobile-section">
-            <h2>Mobile Responsive</h2><p>Same great experience. Anywhere.</p>
-            <div className="phone">
-              <div className="phone-top"><b>⌁ GameHub</b><span>☰</span></div>
-              <div className="phone-game"><small>🎲 Ludo</small><span>Multiplayer · Classic</span><b>Play <i>›</i></b></div>
-              <div className="phone-turn">ϟ <b>Your turn!</b><small>Make your move <em>2s</em></small></div>
-              <div className="phone-score"><span>🔴 Raymond <b>3</b></span><span>John <b>1</b> 🟡</span></div>
-              <div className="phone-ludo"><div>●</div><div>●</div><div>◆</div><div>●</div></div>
-              <div className="phone-nav"><span>⌂<small>Home</small></span><span>□<small>Chat</small></span><span>♩<small>Voice</small></span><span>⋮<small>More</small></span></div>
-            </div>
-          </section>
-        </aside>
-      </div>
-    </main>
-  );
+ const navigate=useNavigate();const[hub,setHub]=useState({onlinePlayers:0,activeRooms:0,rooms:[],leaderboard:[],activity:[]});const[modal,setModal]=useState(null);const[name,setName]=useState(()=>localStorage.getItem('gamehub_name')||'');const[error,setError]=useState('');const[clock,setClock]=useState(Date.now());
+ const load=useCallback(async()=>{try{const res=await fetch(API+'/api/hub',{cache:'no-store'});if(!res.ok)throw new Error();setHub(await res.json());setError('')}catch(e){setError('Live server data is temporarily unavailable. Games can still be opened normally.')}},[]);
+ useEffect(()=>{load();const t=setInterval(load,3000);return()=>clearInterval(t)},[load]);useEffect(()=>{const t=setInterval(()=>setClock(Date.now()),5000);return()=>clearInterval(t)},[]);
+ const rememberName=v=>{setName(v);if(localStorage.getItem('gamehub_remember_name')!=='0')localStorage.setItem('gamehub_name',v.trim().slice(0,20))};
+ const openGame=path=>{if(name.trim())localStorage.setItem('gamehub_name',name.trim().slice(0,20));navigate(path)};
+ const joinRoom=r=>{if(!name.trim()){setModal('rooms');setError('Enter your display name before joining a room.');return}localStorage.setItem('gamehub_name',name.trim().slice(0,20));navigate((GAME_META[r.game]?.path||'/')+'?room='+encodeURIComponent(r.id))};
+ const rooms=hub.rooms||[];const leaders=hub.leaderboard||[];const activity=hub.activity||[];
+ const topRooms=useMemo(()=>rooms.slice(0,4),[rooms]);
+ const refreshAgo=clock;
+ return <main className="hub-page"><div className="hub-noise"/><div className="hub-dashboard">
+  <aside className="hub-sidebar"><div className="brand"><div className="brand-mark">⌁</div><div><strong>GameHub</strong><small>Play · Connect · Compete</small></div></div>
+   <nav className="hub-nav"><a className="active" href="#home"><span>⌂</span>Home</a><a href="#games"><span>ϟ</span>Quick Play</a><button onClick={()=>setModal('rooms')}><span>♧</span>Rooms</button><button onClick={()=>setModal('leaderboard')}><span>♜</span>Leaderboard</button><button onClick={()=>setModal('settings')}><span>⚙</span>Settings</button></nav>
+   <div className="sidebar-profile"><div className="profile-avatar">R</div><div><b>{name||'Raymond'}</b><small><i/> Online</small></div><span>⌄</span></div>
+  </aside>
+  <section className="hub-main" id="home"><header className="hub-header"><div><h1>Welcome back, {name||'Raymond'}!</h1><p>Good games. Better company.</p></div><div className="header-actions"><button aria-label="Live activity" onClick={()=>setModal('activity')}>♧<i className="header-dot"/></button><button aria-label="Voice chat" onClick={()=>setModal('voice')}>♩</button><button className="header-avatar" onClick={()=>setModal('settings')}>R<i/></button></div></header>
+   <section className="hub-hero"><div className="hero-art"><span className="hero-pawn hero-pawn-a">●</span><span className="hero-pawn hero-pawn-b">●</span><span className="hero-die">5</span><span className="hero-die hero-die-two">4</span><span className="hero-die hero-die-three">6</span><b>♛</b></div><div className="hero-copy"><h2>Play. Compete. Have Fun.</h2><p>Choose a game and challenge your friends<br/>in real-time multiplayer battles.</p></div><button className="hero-online" onClick={()=>setModal('rooms')}><span><i/> Online Now</span><strong>{hub.onlinePlayers||0} <small>players</small></strong><div className="mini-avatars">{rooms.flatMap(r=>r.players).slice(0,5).map((p,i)=><i key={p.id}>{p.name[0]}</i>)}{hub.onlinePlayers>5&&<i>+</i>}</div><b>›</b></button></section>
+   <section className="featured-games" id="games">{Object.entries(GAME_META).map(([key,g])=><button key={key} onClick={()=>openGame(g.path)} className={'featured-game '+g.tone}><GameArt type={g.art}/><div className="game-copy"><h3>{g.title}</h3><p>{g.subtitle}</p></div><span className="game-play">Play <b>›</b></span></button>)}</section>
+   <section className="hub-previews">{['ttt','connect4','ludo','battleship'].map(game=><PreviewCard key={game} game={game} room={topRooms.find(r=>r.game===game)} onJoin={joinRoom}/>)}</section>
+  </section>
+  <aside className="hub-rail"><section className="rail-card features-card"><h2>Key Features in This Design</h2><div className="feature-item"><i className="feature-icon blue">▣</i><div><b>Match System</b><p>Rounds continue automatically and scores stay with the match.</p></div></div><div className="feature-item"><i className="feature-icon green">♧</i><div><b>Live Scoreboard</b><p>Scores and rounds come directly from the multiplayer server.</p></div></div><div className="feature-item"><i className="feature-icon gold">□</i><div><b>Floating Notifications</b><p>In-game events appear as timed overlays without forcing a scroll.</p></div></div><div className="feature-item"><i className="feature-icon purple">♧</i><div><b>Chat & Voice</b><p>Socket chat and peer-to-peer voice are available inside rooms.</p></div></div><div className="feature-item"><i className="feature-icon violet">⌁</i><div><b>Responsive Interface</b><p>The same dashboard adapts across desktop, tablet and mobile.</p></div></div></section>
+   <ActivityList activity={activity}/><section className="voice-card"><div className="voice-title"><span>♩</span><div><b>Voice Chat</b><small>{hub.onlinePlayers?'Available in live rooms':'Waiting for players'}</small></div><button onClick={()=>setModal('voice')}>◖</button></div><div className="voice-wave"><span>♩</span><i/><i/><i/><i/><i/><i/><i/><i/><i/><b>⌁</b></div></section>
+   <section className="mobile-section"><h2>Mobile Responsive</h2><p>Same real dashboard. Anywhere.</p><div className="phone"><div className="phone-top"><b>⌁ GameHub</b><span>☰</span></div><div className="phone-game"><small>🎲 Ludo</small><span>{hub.activeRooms} active room{hub.activeRooms===1?'':'s'}</span><button onClick={()=>openGame('/ludo')}>Play <i>›</i></button></div><div className="phone-turn">ϟ <b>{hub.onlinePlayers?'Live now':'Offline'}</b><small>{hub.onlinePlayers||0} connected players</small></div><div className="phone-score"><span>Rooms <b>{hub.activeRooms}</b></span><span>Online <b>{hub.onlinePlayers}</b></span></div><div className="phone-ludo"><div>●</div><div>●</div><div>◆</div><div>●</div></div><div className="phone-nav"><button onClick={()=>document.getElementById('home')?.scrollIntoView()}>⌂<small>Home</small></button><button onClick={()=>setModal('activity')}>□<small>Chat</small></button><button onClick={()=>setModal('voice')}>♩<small>Voice</small></button><button onClick={()=>setModal('settings')}>⋮<small>More</small></button></div></div></section>
+  </aside>
+ </div>{error&&<div className="hub-live-error" onClick={()=>setError('')}>{error} <b>×</b></div>}
+ {modal==='rooms'&&<RoomsModal rooms={rooms} onClose={()=>setModal(null)} onJoin={joinRoom} name={name} setName={rememberName}/>}
+ {modal==='leaderboard'&&<LeaderboardModal leaders={leaders} onClose={()=>setModal(null)}/>}
+ {modal==='settings'&&<SettingsModal onClose={()=>setModal(null)}/>}
+ {modal==='voice'&&<VoiceModal onClose={()=>setModal(null)}/>}
+ {modal==='activity'&&<Modal title="Live Activity" onClose={()=>setModal(null)}><ActivityList activity={activity}/></Modal>}
+ </main>;
 }
