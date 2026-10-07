@@ -18,8 +18,8 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const authMod = await import(/* @vite-ignore */ 'firebase/auth');
-        const firestoreMod = await import(/* @vite-ignore */ 'firebase/firestore');
+        const authMod = await import(new Function('return "firebase/auth"')());
+        const firestoreMod = await import(new Function('return "firebase/firestore"')());
 
         if (!active) return;
 
@@ -83,7 +83,7 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(() => ({
     user, profile, loading,
-    logout: () => (auth ? import(/* @vite-ignore */ 'firebase/auth').then(({ signOut }) => signOut(auth)).catch(() => Promise.resolve()) : Promise.resolve()),
+    logout: () => (auth ? import(new Function('return "firebase/auth"')()).then(({ signOut }) => signOut(auth)).catch(() => Promise.resolve()) : Promise.resolve()),
   }), [user, profile, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

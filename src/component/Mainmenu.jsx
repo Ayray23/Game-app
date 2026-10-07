@@ -1,8 +1,11 @@
 ﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+
+async function loadFirestore() {
+  return import(new Function('return "firebase/firestore"')());
+}
 
 const API = import.meta.env.DEV
   ? 'http://localhost:5000'
@@ -300,6 +303,8 @@ function ProfileModal({ onClose, user, profile }) {
     const uid = user.uid;
 
     (async () => {
+      const firestoreMod = await loadFirestore();
+      const { collection, getDocs, query, where } = firestoreMod;
       const q = query(collection(db, 'matches'), where('playerUids', 'array-contains', uid));
       const s = await getDocs(q);
       setMatches(

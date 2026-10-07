@@ -17,19 +17,23 @@ export let auth = null;
 export let db = null;
 
 if (firebaseConfigured) {
-  try {
-    const [{ initializeApp }, { getAuth }, { getFirestore }] = await Promise.all([
-      import(/* @vite-ignore */ 'firebase/app'),
-      import(/* @vite-ignore */ 'firebase/auth'),
-      import(/* @vite-ignore */ 'firebase/firestore'),
-    ]);
+  (async () => {
+    try {
+      const firebaseAppMod = await import(new Function('return "firebase/app"')());
+      const firebaseAuthMod = await import(new Function('return "firebase/auth"')());
+      const firebaseFirestoreMod = await import(new Function('return "firebase/firestore"')());
 
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-  } catch (error) {
-    console.warn('Firebase SDK could not be initialized. Auth and Firestore will be disabled until the dependency is installed.', error);
-  }
+      const { initializeApp } = firebaseAppMod;
+      const { getAuth } = firebaseAuthMod;
+      const { getFirestore } = firebaseFirestoreMod;
+
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+    } catch (error) {
+      console.warn('Firebase SDK could not be initialized. Auth and Firestore will be disabled until the dependency is installed.', error);
+    }
+  })();
 }
 
 export default app;

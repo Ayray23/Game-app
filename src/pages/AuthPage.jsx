@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import {
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  updateProfile,
-} from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, firebaseConfigured } from "../firebase";
 import { useAuth } from "../context/AuthContext";
+
+async function loadFirebaseAuth() {
+  return import(new Function('return "firebase/auth"')());
+}
+
+async function loadFirebaseFirestore() {
+  return import(new Function('return "firebase/firestore"')());
+}
 
 export default function AuthPage({ mode = "login" }) {
   const navigate = useNavigate();
@@ -35,6 +36,16 @@ export default function AuthPage({ mode = "login" }) {
     if (isSignup && form.password !== form.confirm) return setError("Passwords do not match.");
     setBusy(true);
     try {
+      const authMod = await loadFirebaseAuth();
+      const firestoreMod = await loadFirebaseFirestore();
+      const {
+        createUserWithEmailAndPassword,
+        sendPasswordResetEmail,
+        signInWithEmailAndPassword,
+        updateProfile,
+      } = authMod;
+      const { doc, setDoc, serverTimestamp } = firestoreMod;
+
       if (isSignup) {
         const cred = await createUserWithEmailAndPassword(auth, form.email.trim(), form.password);
         const username = form.username.trim().slice(0, 20);
@@ -78,7 +89,8 @@ export default function AuthPage({ mode = "login" }) {
     setError("");
     setNotice("");
     try {
-      await sendPasswordResetEmail(auth, form.email.trim());
+      const authMod = await loadFirebaseAuth();
+      await authMod.sendPasswordResetEmail(auth, form.email.trim());
       setNotice("Password reset email sent. Check your inbox.");
     } catch (err) {
       setError(err?.code === "auth/user-not-found" ? "No account exists for that email." : "Unable to send the reset email.");
