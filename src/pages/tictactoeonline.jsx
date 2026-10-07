@@ -7,11 +7,11 @@ import GameHUD from'../component/GameHUD';
 
 const SOCKET_URL=import.meta.env.DEV?'http://localhost:5000':(import.meta.env.VITE_SOCKET_URL||'https://game-server-1-sxiw.onrender.com');
 const socket=io(SOCKET_URL,{autoConnect:false});
-const makeCode=()=>Math.random().toString(36).slice(2,8).toUpperCase();
+const makeCode=()=>Math.random().toString(36).slice(2,8).toUpperCase(),queryRoom=new URLSearchParams(window.location.search).get('room')?.trim().toUpperCase()||'';
 
 export default function TictactoeOnline(){
  const navigate=useNavigate();
- const[phase,setPhase]=useState('setup'),[name,setName]=useState(''),[roomInput,setRoomInput]=useState(''),[roomId,setRoomId]=useState(''),[symbol,setSymbol]=useState(null),[board,setBoard]=useState(Array(9).fill(null)),[players,setPlayers]=useState([]),[turn,setTurn]=useState('X'),[status,setStatus]=useState('waiting'),[winner,setWinner]=useState(null),[draw,setDraw]=useState(false),[scores,setScores]=useState([]),[round,setRound]=useState(1),[error,setError]=useState(''),[messages,setMessages]=useState([]),[message,setMessage]=useState('');
+ const[phase,setPhase]=useState('setup'),[name,setName]=useState(''),[roomInput,setRoomInput]=useState(queryRoom),[roomId,setRoomId]=useState(''),[symbol,setSymbol]=useState(null),[board,setBoard]=useState(Array(9).fill(null)),[players,setPlayers]=useState([]),[turn,setTurn]=useState('X'),[status,setStatus]=useState('waiting'),[winner,setWinner]=useState(null),[draw,setDraw]=useState(false),[scores,setScores]=useState([]),[round,setRound]=useState(1),[error,setError]=useState(''),[messages,setMessages]=useState([]),[message,setMessage]=useState('');
  const chatRef=useRef(null),symbolRef=useRef(null);
 
  useEffect(()=>{
@@ -21,8 +21,8 @@ export default function TictactoeOnline(){
   const onChat=msg=>{setMessages(v=>[...v.slice(-49),msg]);sounds.message()};
   const onError=msg=>setError(msg);
   const onLeft=()=>{setPhase('waiting');setStatus('waiting');setPlayers([]);setBoard(Array(9).fill(null))};
-  socket.on('roomCreated',onCreated);socket.on('roomJoined',onJoined);socket.on('game-state',onState);socket.on('chat-message',onChat);socket.on('errorMessage',onError);socket.on('playerLeft',onLeft);socket.connect();
-  return()=>{socket.off('roomCreated',onCreated);socket.off('roomJoined',onJoined);socket.off('game-state',onState);socket.off('chat-message',onChat);socket.off('errorMessage',onError);socket.off('playerLeft',onLeft);socket.disconnect()};
+  const autoJoin=()=>{const saved=localStorage.getItem('gamehub_name')||'';if(queryRoom&&saved)socket.emit('joinRoom',{roomId:queryRoom,name:saved.slice(0,20),game:'ttt'})};socket.on('connect',autoJoin);socket.on('roomCreated',onCreated);socket.on('roomJoined',onJoined);socket.on('game-state',onState);socket.on('chat-message',onChat);socket.on('errorMessage',onError);socket.on('playerLeft',onLeft);socket.connect();
+  return()=>{socket.off('connect',autoJoin);socket.off('roomCreated',onCreated);socket.off('roomJoined',onJoined);socket.off('game-state',onState);socket.off('chat-message',onChat);socket.off('errorMessage',onError);socket.off('playerLeft',onLeft);socket.disconnect()};
  },[]);
  useEffect(()=>chatRef.current?.scrollTo({top:chatRef.current.scrollHeight,behavior:'smooth'}),[messages]);
 
