@@ -1,58 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { sounds } from '../lib/audio';
-
-const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-const winnerFor = (squares) => {
-  for (const [a,b,c] of lines) if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return squares[a];
-  return null;
-};
-
-export default function TictactoeLocal() {
-  const [board, setBoard] = useState(Array(9).fill(null));
-  const [turn, setTurn] = useState('X');
-  const [score, setScore] = useState(() => JSON.parse(localStorage.getItem('ticTacToeScore') || '{"X":0,"O":0}'));
-  const [timer, setTimer] = useState(10);
-  const winner = winnerFor(board);
-  const finished = !!winner || board.every(Boolean);
-
-  useEffect(() => {
-    if (finished) return;
-    const id = setInterval(() => setTimer((t) => {
-      if (t <= 1) { sounds.timeout(); setTurn((v) => v === 'X' ? 'O' : 'X'); return 10; }
-      return t - 1;
-    }), 1000);
-    return () => clearInterval(id);
-  }, [finished, turn]);
-
-  const play = (i) => {
-    if (board[i] || finished) return;
-    sounds.move();
-    const next = [...board]; next[i] = turn; setBoard(next);
-    const win = winnerFor(next);
-    if (win) {
-      const nextScore = { ...score, [win]: score[win] + 1 };
-      setScore(nextScore); localStorage.setItem('ticTacToeScore', JSON.stringify(nextScore)); sounds.win();
-    } else if (next.every(Boolean)) sounds.draw();
-    else setTurn((v) => v === 'X' ? 'O' : 'X');
-    setTimer(10);
-  };
-  const reset = () => { sounds.click(); setBoard(Array(9).fill(null)); setTurn('X'); setTimer(10); };
-  const resetScore = () => { sounds.click(); const s={X:0,O:0}; setScore(s); localStorage.setItem('ticTacToeScore', JSON.stringify(s)); };
-
-  return (
-    <main className="game-shell">
-      <section className="game-card">
-        <Link className="back-link" to="/tictactoe">← Back</Link>
-        <div className="eyebrow">LOCAL 2 PLAYER</div>
-        <h1>Tic Tac Toe</h1>
-        <div className="score"><span>✕ {score.X}</span><span>○ {score.O}</span><span>⏱ {timer}s</span></div>
-        <div className="status">{winner ? `Winner: ${winner}` : board.every(Boolean) ? 'Draw game' : `Player ${turn}'s turn`}</div>
-        <div className="online-board">
-          {board.map((s,i)=><button key={i} className={s==='X'?'cell x':s==='O'?'cell o':'cell'} onClick={()=>play(i)}>{s==='X'?'✕':s==='O'?'○':''}</button>)}
-        </div>
-        <div className="button-row"><button className="primary-btn" onClick={reset}>New Game</button><button className="secondary-btn" onClick={resetScore}>Reset Score</button></div>
-      </section>
-    </main>
-  );
-}
+import React,{useEffect,useState}from'react';import{Link}from'react-router-dom';import{sounds}from'../lib/audio';
+const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];const winnerFor=s=>{for(const[a,b,c]of lines)if(s[a]&&s[a]===s[b]&&s[a]===s[c])return s[a];return null};
+export default function TictactoeLocal(){const[board,setBoard]=useState(Array(9).fill(null)),[turn,setTurn]=useState('X'),[score,setScore]=useState(()=>JSON.parse(localStorage.getItem('ticTacToeScore')||'{"X":0,"O":0}')),[timer,setTimer]=useState(10);const winner=winnerFor(board),finished=!!winner||board.every(Boolean);
+useEffect(()=>{if(finished)return;const id=setInterval(()=>setTimer(t=>{if(t<=1){sounds.timeout();setTurn(v=>v==='X'?'O':'X');return 10}return t-1}),1000);return()=>clearInterval(id)},[finished,turn]);
+const play=i=>{if(board[i]||finished)return;sounds.move();const next=[...board];next[i]=turn;setBoard(next);const win=winnerFor(next);if(win){const ns={...score,[win]:score[win]+1};setScore(ns);localStorage.setItem('ticTacToeScore',JSON.stringify(ns));sounds.win()}else if(next.every(Boolean))sounds.draw();else setTurn(v=>v==='X'?'O':'X');setTimer(10)};const reset=()=>{sounds.click();setBoard(Array(9).fill(null));setTurn('X');setTimer(10)};const resetScore=()=>{const s={X:0,O:0};setScore(s);localStorage.setItem('ticTacToeScore',JSON.stringify(s));sounds.click()};
+return <main className="game-shell game-shell-premium"><section className="game-card local-game-card"><Link className="back-link" to="/tictactoe">← Game modes</Link><div className="local-head"><div><span className="eyebrow">LOCAL ARENA</span><h1>Tic-Tac-Toe</h1><p className="muted">Pass the device. Ten seconds per move.</p></div><div className="local-score"><span className="score-x">X <b>{score.X}</b></span><span className="score-o">O <b>{score.O}</b></span></div></div><div className="ttt-turn"><span className={turn==='X'?'active':''}>{turn}</span><div><b>{winner?winner+' wins!':board.every(Boolean)?'Draw game':turn+' to move'}</b><small>{winner?'Round complete':finished?'Start a new round':'Move before the timer ends'}</small></div><strong>{timer}s</strong></div><div className="ttt-local-board">{board.map((s,i)=><button key={i} className={s?s.toLowerCase():''} onClick={()=>play(i)} disabled={!!s||finished}>{s||'+'}</button>)}</div><div className="button-row"><button className="primary-btn" onClick={reset}>New Round <span>→</span></button><button className="secondary-btn" onClick={resetScore}>Reset Score</button></div></section></main>}
