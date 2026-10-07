@@ -19,20 +19,14 @@ export default function AuthPage({ mode = "login" }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const isSignup = mode === "signup";
- <main className="auth-page"><section className="auth-card"><Link to="/" className="auth-brand"><span>⌁</span><b>GameHub</b></Link><div className="auth-heading"><span className="eyebrow">FIREBASE SETUP REQUIRED</span><h1>Authentication is not configured yet</h1><p>Add the VITE_FIREBASE_* environment variables to this project and redeploy. Guest mode is still available.</p></div><Link className="auth-submit" style={{display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none'}} to="/">Continue as guest</Link></section></main>;
 
   useEffect(() => {
     if (!loading && user) navigate(location.state?.from || "/", { replace: true });
   }, [user, loading, navigate, location.state]);
 
+  const change = (e) => setForm((v) => ({ ...v, [e.target.name]: e.target.value }));
 
-  if (!firebaseConfigured) return <main className="auth-page"><section className="auth-card"><Link to="/" className="auth-brand"><span>⌁</span><b>GameHub</b></Link><div className="auth-heading"><span className="eyebrow">FIREBASE SETUP REQUIRED</span><h1>Authentication is not configured yet</h1><p>Add the VITE_FIREBASE_* environment variables to this project and redeploy. Guest mode is still available.</p></div><Link className="auth-submit" style={{display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none'}} to="/">Continue as guest</Link></section></main>;
-
-  if (!firebaseConfigured) return <main className="auth-page"><section className="auth-card"><Link to="/" className="auth-brand"><span>⌁</span><b>GameHub</b></Link><div className="auth-heading"><span className="eyebrow">FIREBASE SETUP REQUIRED</span><h1>Authentication is not configured yet</h1><p>Add the VITE_FIREBASE_* environment variables to this project and redeploy. Guest mode is still available.</p></div><Link className="auth-submit" style={{display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none"}} to="/">Continue as guest</Link></section></main>;
-
-  const change = e => setForm(v => ({ ...v, [e.target.name]: e.target.value }));
-
-  const submit = async e => {
+  const submit = async (e) => {
     e.preventDefault();
     setError("");
     setNotice("");
@@ -61,7 +55,7 @@ export default function AuthPage({ mode = "login" }) {
       } else {
         await signInWithEmailAndPassword(auth, form.email.trim(), form.password);
       }
-      navigate("/");
+      navigate(location.state?.from || "/");
     } catch (err) {
       const code = err?.code || "";
       const messages = {
@@ -80,20 +74,41 @@ export default function AuthPage({ mode = "login" }) {
 
   const reset = async () => {
     if (!form.email.trim()) return setError("Enter your email first.");
-    setBusy(true); setError(""); setNotice("");
+    setBusy(true);
+    setError("");
+    setNotice("");
     try {
       await sendPasswordResetEmail(auth, form.email.trim());
       setNotice("Password reset email sent. Check your inbox.");
     } catch (err) {
       setError(err?.code === "auth/user-not-found" ? "No account exists for that email." : "Unable to send the reset email.");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
+  if (!firebaseConfigured) {
+    return <main className="auth-page"><section className="auth-card">
+      <Link to="/" className="auth-brand"><span>⌁</span><b>GameHub</b></Link>
+      <div className="auth-heading">
+        <span className="eyebrow">FIREBASE SETUP REQUIRED</span>
+        <h1>Authentication is not configured yet</h1>
+        <p>Add the VITE_FIREBASE_* environment variables to the project and redeploy. Guest mode is still available.</p>
+      </div>
+      <Link className="auth-submit" style={{ display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }} to="/">Continue as guest</Link>
+    </section></main>;
+  }
+
   return <main className="auth-page">
-    <div className="auth-glow auth-glow-a"/><div className="auth-glow auth-glow-b"/>
+    <div className="auth-glow auth-glow-a" />
+    <div className="auth-glow auth-glow-b" />
     <section className="auth-card">
       <Link to="/" className="auth-brand"><span>⌁</span><b>GameHub</b></Link>
-      <div className="auth-heading"><span className="eyebrow">PLAY · CONNECT · COMPETE</span><h1>{isSignup ? "Create your account" : "Welcome back"}</h1><p>{isSignup ? "Create your player identity and start building your record." : "Sign in to keep your stats, scores and match history."}</p></div>
+      <div className="auth-heading">
+        <span className="eyebrow">PLAY · CONNECT · COMPETE</span>
+        <h1>{isSignup ? "Create your account" : "Welcome back"}</h1>
+        <p>{isSignup ? "Create your player identity and start building your record." : "Sign in to keep your stats, scores and match history."}</p>
+      </div>
       <form onSubmit={submit} className="auth-form">
         {isSignup && <label>Username<input name="username" value={form.username} onChange={change} maxLength={20} autoComplete="username" placeholder="Your gamer name" required /></label>}
         <label>Email<input name="email" type="email" value={form.email} onChange={change} autoComplete="email" placeholder="you@example.com" required /></label>
