@@ -11,12 +11,12 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const missing = Object.entries(firebaseConfig).filter(([, value]) => !value);
-if (missing.length) {
-  console.warn("Firebase is not configured. Add the VITE_FIREBASE_* variables to your Vercel/local environment.");
+export const firebaseConfigured = Object.values(firebaseConfig).every(Boolean);
+if (!firebaseConfigured) {
+  console.warn("Firebase is not configured. Add the VITE_FIREBASE_* variables to your local .env and Vercel project settings.");
 }
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+const app = firebaseConfigured ? initializeApp(firebaseConfig) : null;
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;
 export default app;
