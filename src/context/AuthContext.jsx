@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth || !db) { setLoading(false); return undefined; }
     return onAuthStateChanged(auth, async (nextUser) => {
       setUser(nextUser);
       if (!nextUser) {
